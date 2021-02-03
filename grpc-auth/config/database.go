@@ -42,5 +42,6 @@ func getDBConnection() *sqlx.DB {
 	db.SetMaxIdleConns(1)
 	db.SetMaxOpenConns(5)
 
+	fmt.Println("Connected to DB")
 	return db
 }
