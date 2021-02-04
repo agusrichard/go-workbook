@@ -23,7 +23,7 @@ func getDBConnection() *sqlx.DB {
 		"host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
 		"localhost",
 		5432,
-		"grpc_auth",
+		"grpc_todo",
 		"postgres",
 		"postgres",
 	)
@@ -42,5 +42,6 @@ func getDBConnection() *sqlx.DB {
 	db.SetMaxIdleConns(1)
 	db.SetMaxOpenConns(5)
 
+	fmt.Println("Connected to DB")
 	return db
 }
