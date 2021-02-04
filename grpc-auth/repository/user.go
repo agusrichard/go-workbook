@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"fmt"
 	"grpc-auth/models"
 	"log"
 
@@ -70,13 +69,13 @@ func insertUser(tx *sql.Tx, username string, password string) error {
 
 func (userRepository *userRepository) GetUserByUsername(username string) (models.User, error) {
 	var user models.User
-	var id int
+	var id int64
 
 	err := userRepository.db.QueryRow(`
 		SELECT id, username, password FROM users WHERE username=$1;
 	`, username).Scan(&id, &(user.Username), &(user.Password))
 
-	user.ID = fmt.Sprintf("%v", id)
+	user.ID = id
 
 	if err != nil {
 		log.Println("Error to get user by username", err)

@@ -1,8 +1,10 @@
 package utils
 
 import (
+	"fmt"
 	"grpc-auth/models"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -36,7 +38,8 @@ func ParseToken(tokenStr string) (models.User, error) {
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		id := claims["id"].(string)
+		idStr := fmt.Sprintf("%v", claims["id"])
+		id, _ := strconv.ParseInt(idStr, 10, 64)
 		username := claims["username"].(string)
 		return models.User{Username: username, ID: id}, nil
 	}
