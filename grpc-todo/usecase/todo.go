@@ -5,7 +5,6 @@ import (
 	"grpc-todo/models"
 	"grpc-todo/repository"
 	"log"
-	"strconv"
 )
 
 type todoUsecase struct {
@@ -14,7 +13,9 @@ type todoUsecase struct {
 
 type TodoUsecase interface {
 	CreateTodo(todo models.Todo) (bool, error)
-	GetTodos(userID string) (string, error)
+	GetTodos(userID int64) (string, error)
+	UpdateTodo(todo models.Todo) (bool, error)
+	DeleteTodo(id int64) (bool, error)
 }
 
 func InitUserUsecase(todoRepository repository.TodoRepository) TodoUsecase {
@@ -33,9 +34,8 @@ func (todoUsecase *todoUsecase) CreateTodo(todo models.Todo) (bool, error) {
 	return true, nil
 }
 
-func (todoUsecase *todoUsecase) GetTodos(userID string) (string, error) {
-	id, err := strconv.Atoi(userID)
-	todos, err := todoUsecase.todoRepository.GetTodos(id)
+func (todoUsecase *todoUsecase) GetTodos(userID int64) (string, error) {
+	todos, err := todoUsecase.todoRepository.GetTodos(userID)
 	if err != nil {
 		log.Println("Error get todos", err)
 		return "", err
@@ -44,4 +44,24 @@ func (todoUsecase *todoUsecase) GetTodos(userID string) (string, error) {
 	result, err := json.Marshal(todos)
 
 	return string(result), nil
+}
+
+func (todoUsecase *todoUsecase) UpdateTodo(todo models.Todo) (bool, error) {
+	_, err := todoUsecase.todoRepository.UpdateTodo(todo)
+	if err != nil {
+		log.Println("Error update todo", err)
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (todoUsecase *todoUsecase) DeleteTodo(id int64) (bool, error) {
+	_, err := todoUsecase.todoRepository.DeleteTodo(id)
+	if err != nil {
+		log.Println("Error delete todo", err)
+		return false, err
+	}
+
+	return true, nil
 }
