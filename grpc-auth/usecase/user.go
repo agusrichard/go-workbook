@@ -3,7 +3,6 @@ package usecase
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"grpc-auth/models"
 	"grpc-auth/repository"
 	"grpc-auth/utils"
@@ -64,7 +63,6 @@ func (userUsecase *userUsecase) Login(username, password string) (string, error)
 
 func (userUsecase *userUsecase) ValidateToken(token string) (string, error) {
 	user, err := utils.ParseToken(token)
-	fmt.Println("user", user)
 	if err != nil {
 		log.Println("Error to validate token", err)
 		return "", err

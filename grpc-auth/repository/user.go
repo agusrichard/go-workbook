@@ -32,7 +32,7 @@ func (userRepository *userRepository) CreateUser(username string, password strin
 	if errTx != nil {
 		log.Println("Error create user: ", errTx)
 	} else {
-		err = insertJetty(tx, username, password)
+		err = insertUser(tx, username, password)
 		if err != nil {
 			log.Println("Error create user: ", err)
 		}
@@ -50,7 +50,7 @@ func (userRepository *userRepository) CreateUser(username string, password strin
 	return result, err
 }
 
-func insertJetty(tx *sql.Tx, username string, password string) error {
+func insertUser(tx *sql.Tx, username string, password string) error {
 	_, err := tx.Exec(`
 	INSERT INTO users (
 		username,
