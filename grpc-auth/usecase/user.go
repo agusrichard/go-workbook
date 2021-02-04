@@ -1,7 +1,9 @@
 package usecase
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"grpc-auth/models"
 	"grpc-auth/repository"
 	"grpc-auth/utils"
@@ -15,6 +17,7 @@ type userUsecase struct {
 type UserUsecase interface {
 	Register(username, password string) (bool, error)
 	Login(username, password string) (string, error)
+	ValidateToken(token string) (string, error)
 }
 
 func InitUserUsecase(userRepository repository.UserRepository) UserUsecase {
@@ -57,4 +60,19 @@ func (userUsecase *userUsecase) Login(username, password string) (string, error)
 		log.Println("Error to login", err)
 	}
 	return tokenString, nil
+}
+
+func (userUsecase *userUsecase) ValidateToken(token string) (string, error) {
+	user, err := utils.ParseToken(token)
+	fmt.Println("user", user)
+	if err != nil {
+		log.Println("Error to validate token", err)
+		return "", err
+	}
+	result, err := json.Marshal(&user)
+	if err != nil {
+		log.Println("Error to validate token", err)
+		return "", err
+	}
+	return string(result), nil
 }

@@ -36,6 +36,10 @@ func (s *Server) Login(ctx context.Context, request *LoginRequest) (*LoginRespon
 }
 
 func (s *Server) ValidateToken(ctx context.Context, request *ValidateTokenRequest) (*ValidateTokenResponse, error) {
-	log.Printf("Receive request from client: %v", request)
-	return &ValidateTokenResponse{Success: true, Message: "Hello from the server validate token"}, nil
+	result, err := s.userUsecase.ValidateToken(request.Token)
+	if err != nil {
+		log.Println("Error to validate token", err)
+		return &ValidateTokenResponse{Success: false, Message: "Invalid token"}, err
+	}
+	return &ValidateTokenResponse{Success: true, Message: result}, nil
 }

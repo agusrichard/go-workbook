@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
 	"grpc-auth/models"
 	"log"
 
@@ -69,10 +70,13 @@ func insertJetty(tx *sql.Tx, username string, password string) error {
 
 func (userRepository *userRepository) GetUserByUsername(username string) (models.User, error) {
 	var user models.User
+	var id int
 
 	err := userRepository.db.QueryRow(`
 		SELECT id, username, password FROM users WHERE username=$1;
-	`, username).Scan(&(user.ID), &(user.Username), &(user.Password))
+	`, username).Scan(&id, &(user.Username), &(user.Password))
+
+	user.ID = fmt.Sprintf("%v", id)
 
 	if err != nil {
 		log.Println("Error to get user by username", err)
