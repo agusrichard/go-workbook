@@ -33,5 +33,10 @@ func (s *Server) CreateTodo(ctx context.Context, request *CreateTodoRequest) (*C
 }
 
 func (s *Server) GetTodos(ctx context.Context, request *GetTodosRequest) (*GetTodosResponse, error) {
-	return &GetTodosResponse{Success: false, Message: "GetTodos", Data: ""}, nil
+	todos, err := s.todoUsecase.GetTodos(request.UserID)
+	if err != nil {
+		log.Println("Error create todo", err)
+		return &GetTodosResponse{Success: false, Message: fmt.Sprintf("%v", err)}, err
+	}
+	return &GetTodosResponse{Success: true, Message: "Success to get todos", Data: todos}, nil
 }

@@ -14,6 +14,7 @@ type todoRepository struct {
 
 type TodoRepository interface {
 	CreateTodo(todo models.Todo) (bool, error)
+	GetTodos(userID int) ([]models.Todo, error)
 }
 
 func InitTodoRepository(db *sqlx.DB) TodoRepository {
@@ -67,4 +68,30 @@ func insertTodo(tx *sql.Tx, todo models.Todo) error {
 	)
 
 	return err
+}
+
+func (todoRepository *todoRepository) GetTodos(userID int) ([]models.Todo, error) {
+	var todos []models.Todo
+	rows, err := todoRepository.db.Query(`
+		SELECT id, title, description FROM todos WHERE user_id=$1;
+	`, userID)
+
+	if err != nil {
+		log.Println("Error get todos", err)
+		return []models.Todo{}, err
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var todo models.Todo
+		err = rows.Scan(&(todo.ID), &(todo.Title), &(todo.Description))
+		if err != nil {
+			log.Println("Error get todos", err)
+			return []models.Todo{}, err
+		}
+
+		todos = append(todos, todo)
+	}
+
+	return todos, nil
 }
