@@ -1,0 +1,22 @@
+version: "3.8"
+services:
+  web-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: twit_api_test
+    ports:
+      - "9090:9090"
+    depends_on:
+      - db-test
+    volumes:
+      - ./:/app
+  db-test:
+    image: postgres:13
+    ports:
+      - "5432:5432"
+    container_name: twit_db_test
+    environment:
+      - POSTGRES_USER=${SSMS_POSTGRES_USER}
+      - POSTGRES_PASSWORD=${SSMS_POSTGRES_PASSWORD}
+      - POSTGRES_DB=${SSMS_DB}
