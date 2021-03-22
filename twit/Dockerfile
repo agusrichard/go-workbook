@@ -1,4 +1,5 @@
-FROM golang
+# Please keep up to date with the new-version of Golang docker for builder
+FROM golang:latest
 
 RUN apt update && apt upgrade -y && \
     apt install -y git \

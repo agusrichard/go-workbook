@@ -1,4 +1,4 @@
-version: "3"
+version: "3.8"
 services:
   web:
     build:
@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     container_name: twit_api
     ports:
-      - 9191:9090
+      - "9090:9090"
     depends_on:
       - db
     volumes:
