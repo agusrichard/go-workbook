@@ -1,0 +1,27 @@
+version: "3"
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: twit_api
+    ports:
+      - 9191:9090
+    depends_on:
+      - db
+    volumes:
+      - ./:/app
+  db:
+    image: postgres:13
+    ports:
+      - "5432:5432"
+    container_name: twit_db
+    environment:
+      - POSTGRES_USER=${SSMS_POSTGRES_USER}
+      - POSTGRES_PASSWORD=${SSMS_POSTGRES_PASSWORD}
+      - POSTGRES_DB=${SSMS_DB}
+    volumes:
+      - twit_db:/var/lib/postgresql/data
+volumes:
+  twit_db:
+    driver: local
