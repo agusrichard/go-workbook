@@ -28,7 +28,8 @@ func GetConfig() *models.Config {
 			Username: os.Getenv("POSTGRES_USER"),
 			Password: os.Getenv("POSTGRES_PASSWORD"),
 		},
-		TimeZone: "Asia/Jakarta",
+		TimeZone:  "Asia/Jakarta",
+		SecretKey: os.Getenv("SECRET_KEY"),
 	}
 
 	return config

@@ -1,8 +1,9 @@
 package models
 
 type Config struct {
-	Database DatabaseConfig
-	TimeZone string
+	Database  DatabaseConfig
+	TimeZone  string
+	SecretKey string
 }
 
 type DatabaseConfig struct {

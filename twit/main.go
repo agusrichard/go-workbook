@@ -3,6 +3,7 @@ package main
 import (
 	"twit/configs"
 	"twit/handlers"
+	"twit/middlewares"
 	"twit/repositories"
 	"twit/usecases"
 
@@ -28,6 +29,13 @@ func main() {
 
 	// Router for user
 	router.POST("/user/register", userHandler.RegisterUser)
+	router.POST("/user/login", userHandler.LoginUser)
+
+	authorized := router.Group("/")
+	authorized.Use(middlewares.AuthenticateUser())
+	{
+		authorized.GET("/user/profile", userHandler.UserProfile)
+	}
 
 	router.Run(":9090")
 }
