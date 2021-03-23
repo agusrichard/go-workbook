@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"twit/models"
 	"twit/usecases"
 
 	"github.com/gin-gonic/gin"
@@ -22,7 +23,22 @@ func InitUserHandler(userUsecase usecases.UserUsecase) UserHandler {
 }
 
 func (userHandler *userHandler) RegisterUser(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Sekardayu Hana Pradiani",
-	})
+	var user models.User
+
+	if err := ctx.ShouldBindJSON(&user); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+
+	err := userHandler.userUsecase.RegisterUser(user)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+			"data":    nil,
+		})
+	} else {
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "Success to create user",
+			"data":    nil,
+		})
+	}
 }

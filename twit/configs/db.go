@@ -17,7 +17,10 @@ func InitializeDB(config *models.Config) *gorm.DB {
 		config.Database.Port,
 		config.TimeZone,
 	)
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		SkipDefaultTransaction: true,
+		PrepareStmt:            true,
+	})
 
 	if err != nil {
 		panic("Failed to connect to the database")

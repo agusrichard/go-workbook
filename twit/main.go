@@ -18,7 +18,7 @@ func main() {
 	configs.AutoMigrate(db)
 
 	// Initialize repositories
-	userRepository := repositories.InitUserRepository()
+	userRepository := repositories.InitUserRepository(db)
 
 	// Initialize usecases
 	userUsecase := usecases.InitUserUsecase(userRepository)
