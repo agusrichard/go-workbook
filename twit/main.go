@@ -1,6 +1,7 @@
 package main
 
 import (
+	"twit/configs"
 	"twit/handlers"
 	"twit/repositories"
 	"twit/usecases"
@@ -10,6 +11,11 @@ import (
 
 func main() {
 	router := gin.Default()
+
+	// Configurations, database settings and auto migrations
+	configModel := configs.GetConfig()
+	db := configs.InitializeDB(configModel)
+	configs.AutoMigrate(db)
 
 	// Initialize repositories
 	userRepository := repositories.InitUserRepository()

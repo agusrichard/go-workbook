@@ -11,15 +11,17 @@ services:
       - db
     volumes:
       - ./:/app
+    links:
+      - db
   db:
     image: postgres:13
     ports:
       - "5432:5432"
     container_name: twit_db
     environment:
-      - POSTGRES_USER=${SSMS_POSTGRES_USER}
-      - POSTGRES_PASSWORD=${SSMS_POSTGRES_PASSWORD}
-      - POSTGRES_DB=${SSMS_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${DB}
     volumes:
       - twit_db:/var/lib/postgresql/data
 volumes:
