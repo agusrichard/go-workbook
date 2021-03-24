@@ -27,6 +27,12 @@ func InitUserUsecase(userRepository repositories.UserRepository) UserUsecase {
 }
 
 func (userUsecase *userUsecase) RegisterUser(ctx *gin.Context, user models.User) error {
+	if user.Email == "" || user.Password == "" {
+		err := errors.New("Please provide email and password")
+		utils.LogAbort(ctx, err, http.StatusBadRequest)
+		return err
+	}
+
 	hashedPassword, err := utils.HashPassword(user.Password)
 	utils.LogAbort(ctx, err, http.StatusInternalServerError)
 	user.Password = hashedPassword
@@ -37,6 +43,11 @@ func (userUsecase *userUsecase) RegisterUser(ctx *gin.Context, user models.User)
 }
 
 func (userUsecase *userUsecase) LoginUser(ctx *gin.Context, userRequest models.User) (string, error) {
+	if userRequest.Email == "" || userRequest.Password == "" {
+		err := errors.New("Please provide email and password")
+		utils.LogAbort(ctx, err, http.StatusBadRequest)
+		return "", err
+	}
 	user, err := userUsecase.userRepository.GetUserData(ctx, userRequest.Email)
 
 	if verified := utils.CheckPasswordHash(userRequest.Password, user.Password); !verified {

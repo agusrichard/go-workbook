@@ -1,7 +1,6 @@
 package servers
 
 import (
-	"fmt"
 	"twit/configs"
 	"twit/handlers"
 	"twit/middlewares"
@@ -14,7 +13,6 @@ import (
 func SetupRepositories() Repositories {
 	// Configurations, database settings and auto migrations
 	configModel := configs.GetConfig()
-	fmt.Println("configModel", configModel)
 	db := configs.InitializeDB(configModel)
 	configs.AutoMigrate(db)
 
