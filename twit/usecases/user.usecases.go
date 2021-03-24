@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"twit/models"
 	"twit/repositories"
@@ -38,9 +37,7 @@ func (userUsecase *userUsecase) RegisterUser(ctx *gin.Context, user models.User)
 }
 
 func (userUsecase *userUsecase) LoginUser(ctx *gin.Context, userRequest models.User) (string, error) {
-	fmt.Println("userRequest", userRequest.Email)
 	user, err := userUsecase.userRepository.GetUserData(ctx, userRequest.Email)
-	fmt.Println("user", user)
 
 	if verified := utils.CheckPasswordHash(userRequest.Password, user.Password); !verified {
 		err = errors.New("Wrong email or password")
@@ -55,7 +52,6 @@ func (userUsecase *userUsecase) LoginUser(ctx *gin.Context, userRequest models.U
 
 func (userUsecase *userUsecase) UserProfile(ctx *gin.Context, email string) (models.User, error) {
 	user, err := userUsecase.userRepository.GetUserData(ctx, email)
-	utils.LogAbort(ctx, err, http.StatusInternalServerError)
 
 	return user, err
 }

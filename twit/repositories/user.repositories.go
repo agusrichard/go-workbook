@@ -1,7 +1,6 @@
 package repositories
 
 import (
-	"fmt"
 	"net/http"
 	"twit/models"
 	"twit/utils"
@@ -35,7 +34,6 @@ func (userRepository *userRepository) RegisterUser(ctx *gin.Context, user models
 func (userRepository *userRepository) GetUserData(ctx *gin.Context, email string) (models.User, error) {
 	var user models.User
 	result := userRepository.db.First(&user, "email = ?", email)
-	fmt.Println("result.Error", result.Error)
 	utils.LogAbort(ctx, result.Error, http.StatusInternalServerError)
 
 	return user, result.Error
