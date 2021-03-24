@@ -1,9 +1,12 @@
 package repositories
 
 import (
+	"fmt"
+	"net/http"
 	"twit/models"
 	"twit/utils"
 
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
@@ -12,8 +15,8 @@ type userRepository struct {
 }
 
 type UserRepository interface {
-	RegisterUser(user models.User) error
-	GetUserData(email string) (models.User, error)
+	RegisterUser(ctx *gin.Context, user models.User) error
+	GetUserData(ctx *gin.Context, email string) (models.User, error)
 }
 
 func InitUserRepository(db *gorm.DB) UserRepository {
@@ -22,17 +25,18 @@ func InitUserRepository(db *gorm.DB) UserRepository {
 	}
 }
 
-func (userRepository *userRepository) RegisterUser(user models.User) error {
+func (userRepository *userRepository) RegisterUser(ctx *gin.Context, user models.User) error {
 	result := userRepository.db.Select("Email", "Username", "Password").Create(&user)
-	utils.Logging(result.Error, "UserRepository", "Error create user")
+	utils.LogAbort(ctx, result.Error, http.StatusInternalServerError)
 
 	return result.Error
 }
 
-func (userRepository *userRepository) GetUserData(email string) (models.User, error) {
+func (userRepository *userRepository) GetUserData(ctx *gin.Context, email string) (models.User, error) {
 	var user models.User
-	result := userRepository.db.Take(&user)
-	utils.Logging(result.Error, "UserRepository, GetUserData", "Failed to get user data from database")
+	result := userRepository.db.First(&user, "email = ?", email)
+	fmt.Println("result.Error", result.Error)
+	utils.LogAbort(ctx, result.Error, http.StatusInternalServerError)
 
 	return user, result.Error
 }

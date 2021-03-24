@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"twit/models"
 	"twit/usecases"
@@ -31,15 +32,10 @@ func (userHandler *userHandler) RegisterUser(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
 
-	err := userHandler.userUsecase.RegisterUser(user)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
-			"data":    nil,
-		})
-	} else {
+	err := userHandler.userUsecase.RegisterUser(ctx, user)
+	if err == nil {
 		ctx.JSON(http.StatusOK, gin.H{
-			"message": "Success to create user",
+			"message": "Success to register user",
 			"data":    nil,
 		})
 	}
@@ -52,13 +48,9 @@ func (userHandler *userHandler) LoginUser(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
 
-	tokenStr, err := userHandler.userUsecase.LoginUser(user)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Failed to login",
-			"data":    "",
-		})
-	} else {
+	fmt.Println("user", user)
+	tokenStr, err := userHandler.userUsecase.LoginUser(ctx, user)
+	if err == nil {
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": "Success to login",
 			"data":    tokenStr,
@@ -67,7 +59,7 @@ func (userHandler *userHandler) LoginUser(ctx *gin.Context) {
 }
 
 func (userHandler *userHandler) UserProfile(ctx *gin.Context) {
-	user, _ := userHandler.userUsecase.UserProfile(ctx.GetString("email"))
+	user, _ := userHandler.userUsecase.UserProfile(ctx, ctx.GetString("email"))
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "Success to get user profile",
 		"data":    user,
