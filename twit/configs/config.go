@@ -9,10 +9,10 @@ import (
 )
 
 func GetConfig() *models.Config {
-	_, err := os.Stat(".env")
+	_, err := os.Stat("test.env")
 
 	if !os.IsNotExist(err) {
-		err := godotenv.Load(".env")
+		err := godotenv.Load("test.env")
 
 		if err != nil {
 			fmt.Println("Error while reading the env file", err)

@@ -3,11 +3,15 @@ services:
   web-test:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.test
     container_name: twit_api_test
+    env_file:
+      - "test.env"
     ports:
       - "9090:9090"
     depends_on:
+      - db-test
+    links:
       - db-test
     volumes:
       - ./:/app
@@ -17,6 +21,6 @@ services:
       - "5432:5432"
     container_name: twit_db_test
     environment:
-      - POSTGRES_USER=${SSMS_POSTGRES_USER}
-      - POSTGRES_PASSWORD=${SSMS_POSTGRES_PASSWORD}
-      - POSTGRES_DB=${SSMS_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${DB}
