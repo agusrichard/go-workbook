@@ -5,6 +5,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: twit_api
+    env_file:
+      - ".env"
     ports:
       - "9090:9090"
     depends_on:
@@ -18,6 +20,8 @@ services:
     ports:
       - "5432:5432"
     container_name: twit_db
+    env_file:
+      - ".env"
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
