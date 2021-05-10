@@ -1,6 +1,7 @@
 package servers
 
 import (
+	"net/http"
 	"twit/configs"
 	"twit/handlers"
 	"twit/middlewares"
@@ -9,6 +10,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+func mainHandler(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Hello, have a good day!",
+	})
+}
 
 func SetupRepositories() Repositories {
 	// Configurations, database settings and auto migrations
@@ -46,14 +53,16 @@ func SetupServer() *gin.Engine {
 	usecases := SetupUsecases(repositories)
 	handlers := SetupHandlers(usecases)
 
+	router.GET("/", mainHandler)
+
 	// Router for user
 	router.POST("/user/register", handlers.UserHandler.RegisterUser)
 	router.POST("/user/login", handlers.UserHandler.LoginUser)
 
-	authorized := router.Group("/")
+	authorized := router.Group("/user")
 	authorized.Use(middlewares.AuthenticateUser())
 	{
-		authorized.GET("/user/profile", handlers.UserHandler.UserProfile)
+		authorized.GET("/profile", handlers.UserHandler.UserProfile)
 	}
 
 	return router
