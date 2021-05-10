@@ -1,0 +1,39 @@
+basePath: /
+consumes:
+- application/json
+definitions:
+  HelloResponse:
+    properties:
+      message:
+        type: string
+        x-go-name: Message
+    type: object
+    x-go-package: swagger-docs-app/api
+host: localhost:8080
+info:
+  description: Documentation of our Learn Swagger API.
+  title: Learn Swagger.
+  version: 1.0.0
+paths:
+  /hello:
+    get:
+      operationId: idOfHelloEndpoint
+      responses:
+        "200":
+          $ref: '#/responses/helloResponse'
+      summary: Hello does some amazing stuff.
+      tags:
+      - hello-tag
+produces:
+- application/json
+responses:
+  helloResponse:
+    description: This text will appear as description of your response body.
+    schema:
+      $ref: '#/definitions/HelloResponse'
+schemes:
+- http
+securityDefinitions:
+  basic:
+    type: basic
+swagger: "2.0"
