@@ -10,3 +10,6 @@ services:
     volumes:
       - ./config/redis.conf:/usr/local/etc/redis/redis.conf
       - ./command:/usr/local/etc/command
+  redis-client:
+    container_name: redis-client
+    image: redis:6
