@@ -1,15 +1,19 @@
-version: "3.5"
+version: "3.8"
 
 services:
   redis:
     container_name: redis
-    image: redis:6
-    command: redis-server /usr/local/etc/redis/redis.conf
+    image: redis:latest
     ports:
       - 6379:6379
+    restart: always
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: redis-yo-app
+    command: go run main.go
     volumes:
-      - ./config/redis.conf:/usr/local/etc/redis/redis.conf
-      - ./command:/usr/local/etc/command
-  redis-client:
-    container_name: redis-client
-    image: redis:6
+      - .:/app
+    links:
+      - redis
