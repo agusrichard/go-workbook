@@ -1,10 +1,22 @@
 package utils
 
-import "golang.org/x/crypto/bcrypt"
+import (
+	"errors"
+	"net/http"
+	"twit/models"
 
-func HashPassword(password string) (string, error) {
+	"golang.org/x/crypto/bcrypt"
+)
+
+func HashPassword(password string) (string, *models.RequestError) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
+	if err != nil {
+		return "", &models.RequestError{
+			StatusCode: http.StatusInternalServerError,
+			Err:        errors.New("INTERNAL SERVER ERROR"),
+		}
+	}
+	return string(bytes), nil
 }
 
 func CheckPasswordHash(password, hash string) bool {

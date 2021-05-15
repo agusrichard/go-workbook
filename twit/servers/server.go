@@ -4,11 +4,12 @@ import (
 	"net/http"
 	"twit/configs"
 	"twit/handlers"
-	"twit/middlewares"
 	"twit/repositories"
 	"twit/usecases"
+	"twit/utils"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func mainHandler(ctx *gin.Context) {
@@ -17,7 +18,7 @@ func mainHandler(ctx *gin.Context) {
 	})
 }
 
-func SetupRepositories() Repositories {
+func SetupRepositories() (Repositories, *gorm.DB) {
 	// Configurations, database settings and auto migrations
 	configModel := configs.GetConfig()
 	db := configs.InitializeDB(configModel)
@@ -27,7 +28,7 @@ func SetupRepositories() Repositories {
 		UserRepository: repositories.InitUserRepository(db),
 	}
 
-	return repositories
+	return repositories, db
 }
 
 func SetupUsecases(repositories Repositories) Usecases {
@@ -49,7 +50,7 @@ func SetupHandlers(usecases Usecases) Handlers {
 func SetupServer() *gin.Engine {
 	router := gin.Default()
 
-	repositories := SetupRepositories()
+	repositories, _ := SetupRepositories()
 	usecases := SetupUsecases(repositories)
 	handlers := SetupHandlers(usecases)
 
@@ -57,13 +58,37 @@ func SetupServer() *gin.Engine {
 
 	// Router for user
 	router.POST("/auth/register", handlers.UserHandler.RegisterUser)
-	router.POST("/auth/login", handlers.UserHandler.LoginUser)
+	// router.POST("/auth/login", handlers.UserHandler.LoginUser)
 
-	authorized := router.Group("/user")
-	authorized.Use(middlewares.AuthenticateUser())
-	{
-		authorized.GET("/profile", handlers.UserHandler.UserProfile)
-	}
+	// authorized := router.Group("/user")
+	// authorized.Use(middlewares.AuthenticateUser())
+	// {
+	// 	authorized.GET("/profile", handlers.UserHandler.UserProfile)
+	// }
 
 	return router
+}
+
+func SetupTestingServer() (*gin.Engine, utils.TruncateTableExecutor) {
+	router := gin.Default()
+
+	repositories, db := SetupRepositories()
+	usecases := SetupUsecases(repositories)
+	handlers := SetupHandlers(usecases)
+
+	executor := utils.InitTruncateTableExecutor(db)
+
+	router.GET("/", mainHandler)
+
+	// Router for user
+	router.POST("/auth/register", handlers.UserHandler.RegisterUser)
+	// router.POST("/auth/login", handlers.UserHandler.LoginUser)
+
+	// authorized := router.Group("/user")
+	// authorized.Use(middlewares.AuthenticateUser())
+	// {
+	// 	authorized.GET("/profile", handlers.UserHandler.UserProfile)
+	// }
+
+	return router, executor
 }

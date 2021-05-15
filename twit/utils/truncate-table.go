@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"database/sql"
+	"fmt"
 
 	"gorm.io/gorm"
 )
@@ -16,11 +16,15 @@ func InitTruncateTableExecutor(db *gorm.DB) TruncateTableExecutor {
 	}
 }
 
-func (executor *TruncateTableExecutor) TruncateTable(tableName string) {
+func (executor *TruncateTableExecutor) TruncateTable(tableNames []string) {
+	fmt.Println("Truncating table")
 	executor.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec("TRUNCATE TABLE @tableName RESTART IDENTITY CASCADE;", sql.Named("tableName", tableName)).Error; err != nil {
-			tx.Rollback()
-			return err
+		for _, tableName := range tableNames {
+			query := fmt.Sprintf("TRUNCATE TABLE %s RESTART IDENTITY CASCADE;", tableName)
+			if err := tx.Exec(query).Error; err != nil {
+				tx.Rollback()
+				return err
+			}
 		}
 
 		return tx.Commit().Error

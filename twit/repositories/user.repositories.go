@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"errors"
 	"net/http"
 	"twit/models"
 	"twit/utils"
@@ -14,8 +15,8 @@ type userRepository struct {
 }
 
 type UserRepository interface {
-	RegisterUser(ctx *gin.Context, user models.User) error
-	GetUserData(ctx *gin.Context, email string) (models.User, error)
+	RegisterUser(ctx *gin.Context, user models.User) *models.RequestError
+	// GetUserData(ctx *gin.Context, email string) (models.User, error)
 }
 
 func InitUserRepository(db *gorm.DB) UserRepository {
@@ -24,17 +25,24 @@ func InitUserRepository(db *gorm.DB) UserRepository {
 	}
 }
 
-func (userRepository *userRepository) RegisterUser(ctx *gin.Context, user models.User) error {
+func (userRepository *userRepository) RegisterUser(ctx *gin.Context, user models.User) *models.RequestError {
 	result := userRepository.db.Select("Email", "Username", "Password").Create(&user)
-	utils.LogAbort(ctx, result.Error, http.StatusInternalServerError)
+	if result.Error != nil {
+		err := &models.RequestError{
+			StatusCode: http.StatusBadRequest,
+			Err:        errors.New("This email has been registered. Choose another one"),
+		}
+		utils.Logging(err)
+		return err
+	}
 
-	return result.Error
+	return nil
 }
 
-func (userRepository *userRepository) GetUserData(ctx *gin.Context, email string) (models.User, error) {
-	var user models.User
-	result := userRepository.db.First(&user, "email = ?", email)
-	utils.LogAbort(ctx, result.Error, http.StatusInternalServerError)
+// func (userRepository *userRepository) GetUserData(ctx *gin.Context, email string) (models.User, error) {
+// 	var user models.User
+// 	result := userRepository.db.First(&user, "email = ?", email)
+// 	utils.Logging(ctx, result.Error, http.StatusInternalServerError)
 
-	return user, result.Error
-}
+// 	return user, result.Error
+// }

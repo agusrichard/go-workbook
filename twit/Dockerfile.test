@@ -4,5 +4,3 @@ FROM golang:latest
 ADD . /app
 
 WORKDIR /app
-
-CMD ["go", "test", "-v", "-coverprofile=test_result.txt", "./tests"]

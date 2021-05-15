@@ -11,16 +11,23 @@ services:
       - "9090:9090"
     depends_on:
       - db-test
-    links:
-      - db-test
     volumes:
       - ./:/app
+    links:
+      - db
   db-test:
     image: postgres:13
     ports:
       - "5432:5432"
     container_name: twit_db_test
+    env_file:
+      - "test.env"
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${DB}
+    volumes:
+      - twit_db_test:/var/lib/postgresql/data
+volumes:
+  twit_db_test:
+    driver: local
