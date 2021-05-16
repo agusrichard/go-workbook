@@ -1,45 +1,5 @@
 package tests
 
-import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-	"twit/models"
-	"twit/servers"
-
-	"github.com/stretchr/testify/assert"
-)
-
-func TestRegisterSingleUserPositive(t *testing.T) {
-	assert := assert.New(t)
-
-	router, cleanUpExecutor := servers.SetupTestingServer()
-
-	testingServer := httptest.NewServer(router)
-	defer testingServer.Close()
-
-	requestBody, err := json.Marshal(map[string]string{
-		"username": "username",
-		"email":    "email",
-		"password": "password",
-	})
-	assert.NoError(err, "There should be no errors when create requestBody")
-
-	response, err := http.Post(fmt.Sprintf("%s/auth/register", testingServer.URL), "application/json", bytes.NewBuffer(requestBody))
-	assert.Equal(http.StatusOK, response.StatusCode)
-
-	defer response.Body.Close()
-	body := models.Response{}
-	json.NewDecoder(response.Body).Decode(&body)
-	assert.Equal("Success to register user", body.Message)
-	assert.Equal(true, body.Success)
-
-	cleanUpExecutor.TruncateTable([]string{"users"})
-}
-
 // func TestRegisterTheSameUserTwice(t *testing.T) {
 // 	testingServer := httptest.NewServer(servers.SetupServer())
 // 	defer testingServer.Close()

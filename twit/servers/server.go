@@ -47,29 +47,7 @@ func SetupHandlers(usecases Usecases) Handlers {
 	return handlers
 }
 
-func SetupServer() *gin.Engine {
-	router := gin.Default()
-
-	repositories, _ := SetupRepositories()
-	usecases := SetupUsecases(repositories)
-	handlers := SetupHandlers(usecases)
-
-	router.GET("/", mainHandler)
-
-	// Router for user
-	router.POST("/auth/register", handlers.UserHandler.RegisterUser)
-	// router.POST("/auth/login", handlers.UserHandler.LoginUser)
-
-	// authorized := router.Group("/user")
-	// authorized.Use(middlewares.AuthenticateUser())
-	// {
-	// 	authorized.GET("/profile", handlers.UserHandler.UserProfile)
-	// }
-
-	return router
-}
-
-func SetupTestingServer() (*gin.Engine, utils.TruncateTableExecutor) {
+func SetupServer() (*gin.Engine, utils.TruncateTableExecutor) {
 	router := gin.Default()
 
 	repositories, db := SetupRepositories()

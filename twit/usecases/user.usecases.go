@@ -30,7 +30,7 @@ func (userUsecase *userUsecase) RegisterUser(ctx *gin.Context, user models.User)
 	if user.Email == "" || user.Password == "" {
 		err := &models.RequestError{
 			StatusCode: http.StatusBadRequest,
-			Err:        errors.New("Please provide email and password"),
+			Err:        errors.New("Please provide email or password"),
 		}
 		utils.Logging(err)
 		return err
