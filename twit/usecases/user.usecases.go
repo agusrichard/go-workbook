@@ -6,8 +6,6 @@ import (
 	"twit/models"
 	"twit/repositories"
 	"twit/utils"
-
-	"github.com/gin-gonic/gin"
 )
 
 type userUsecase struct {
@@ -15,7 +13,7 @@ type userUsecase struct {
 }
 
 type UserUsecase interface {
-	RegisterUser(ctx *gin.Context, user models.User) *models.RequestError
+	RegisterUser(user models.User) *models.RequestError
 	// LoginUser(ctx *gin.Context, userRequest models.User) (string, *models.RequestError)
 	// UserProfile(ctx *gin.Context, email string) (models.User, *models.RequestError)
 }
@@ -26,7 +24,7 @@ func InitUserUsecase(userRepository repositories.UserRepository) UserUsecase {
 	}
 }
 
-func (userUsecase *userUsecase) RegisterUser(ctx *gin.Context, user models.User) *models.RequestError {
+func (userUsecase *userUsecase) RegisterUser(user models.User) *models.RequestError {
 	if user.Email == "" || user.Password == "" {
 		err := &models.RequestError{
 			StatusCode: http.StatusBadRequest,
@@ -39,10 +37,11 @@ func (userUsecase *userUsecase) RegisterUser(ctx *gin.Context, user models.User)
 	hashedPassword, err := utils.HashPassword(user.Password)
 	if err != nil {
 		utils.Logging(err)
+		return err
 	}
 
 	user.Password = hashedPassword
-	err = userUsecase.userRepository.RegisterUser(ctx, user)
+	err = userUsecase.userRepository.RegisterUser(user)
 
 	return err
 }

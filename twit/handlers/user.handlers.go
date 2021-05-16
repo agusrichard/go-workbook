@@ -35,7 +35,7 @@ func (userHandler *userHandler) RegisterUser(ctx *gin.Context) {
 		})
 	}
 
-	err := userHandler.userUsecase.RegisterUser(ctx, user)
+	err := userHandler.userUsecase.RegisterUser(user)
 	if err == nil {
 		ctx.JSON(http.StatusOK, models.Response{
 			Success: true,

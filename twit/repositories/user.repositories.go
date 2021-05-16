@@ -6,7 +6,6 @@ import (
 	"twit/models"
 	"twit/utils"
 
-	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
@@ -15,7 +14,7 @@ type userRepository struct {
 }
 
 type UserRepository interface {
-	RegisterUser(ctx *gin.Context, user models.User) *models.RequestError
+	RegisterUser(user models.User) *models.RequestError
 	// GetUserData(ctx *gin.Context, email string) (models.User, error)
 }
 
@@ -25,7 +24,7 @@ func InitUserRepository(db *gorm.DB) UserRepository {
 	}
 }
 
-func (userRepository *userRepository) RegisterUser(ctx *gin.Context, user models.User) *models.RequestError {
+func (userRepository *userRepository) RegisterUser(user models.User) *models.RequestError {
 	result := userRepository.db.Select("Email", "Username", "Password").Create(&user)
 	if result.Error != nil {
 		err := &models.RequestError{
