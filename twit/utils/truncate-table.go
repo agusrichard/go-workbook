@@ -17,7 +17,6 @@ func InitTruncateTableExecutor(db *gorm.DB) TruncateTableExecutor {
 }
 
 func (executor *TruncateTableExecutor) TruncateTable(tableNames []string) {
-	fmt.Println("Truncating table")
 	executor.db.Transaction(func(tx *gorm.DB) error {
 		for _, tableName := range tableNames {
 			query := fmt.Sprintf("TRUNCATE TABLE %s RESTART IDENTITY CASCADE;", tableName)
