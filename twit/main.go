@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	router, _ := servers.SetupServer()
+	router := servers.SetupServer()
 
 	router.Run(":9090")
 }

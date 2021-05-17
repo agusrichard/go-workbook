@@ -6,10 +6,8 @@ import (
 	"twit/handlers"
 	"twit/repositories"
 	"twit/usecases"
-	"twit/utils"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 func mainHandler(ctx *gin.Context) {
@@ -18,7 +16,7 @@ func mainHandler(ctx *gin.Context) {
 	})
 }
 
-func SetupRepositories() (Repositories, *gorm.DB) {
+func SetupRepositories() Repositories {
 	// Configurations, database settings and auto migrations
 	configModel := configs.GetConfig()
 	db := configs.InitializeDB(configModel)
@@ -28,7 +26,7 @@ func SetupRepositories() (Repositories, *gorm.DB) {
 		UserRepository: repositories.InitUserRepository(db),
 	}
 
-	return repositories, db
+	return repositories
 }
 
 func SetupUsecases(repositories Repositories) Usecases {
@@ -47,14 +45,12 @@ func SetupHandlers(usecases Usecases) Handlers {
 	return handlers
 }
 
-func SetupServer() (*gin.Engine, utils.TruncateTableExecutor) {
+func SetupServer() *gin.Engine {
 	router := gin.Default()
 
-	repositories, db := SetupRepositories()
+	repositories := SetupRepositories()
 	usecases := SetupUsecases(repositories)
 	handlers := SetupHandlers(usecases)
-
-	executor := utils.InitTruncateTableExecutor(db)
 
 	router.GET("/", mainHandler)
 
@@ -68,5 +64,5 @@ func SetupServer() (*gin.Engine, utils.TruncateTableExecutor) {
 	// 	authorized.GET("/profile", handlers.UserHandler.UserProfile)
 	// }
 
-	return router, executor
+	return router
 }

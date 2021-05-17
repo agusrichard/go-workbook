@@ -8,6 +8,8 @@ import (
 	"gorm.io/gorm"
 )
 
+var DB *gorm.DB
+
 func InitializeDB(config *models.Config) *gorm.DB {
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=%s",
 		config.Database.Host,
@@ -21,6 +23,8 @@ func InitializeDB(config *models.Config) *gorm.DB {
 		SkipDefaultTransaction: true,
 		PrepareStmt:            true,
 	})
+
+	DB = db
 
 	if err != nil {
 		panic("Failed to connect to the database")

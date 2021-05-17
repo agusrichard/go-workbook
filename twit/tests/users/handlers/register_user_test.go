@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"twit/configs"
 	"twit/models"
 	"twit/servers"
 	"twit/utils"
@@ -21,10 +22,12 @@ type HandlerRegisterUserSuite struct {
 }
 
 func (suite *HandlerRegisterUserSuite) SetupTest() {
-	router, cleanupExecutor := servers.SetupServer()
+	router := servers.SetupServer()
 	testingServer := httptest.NewServer(router)
 
 	suite.testingServer = testingServer
+
+	cleanupExecutor := utils.InitTruncateTableExecutor(configs.DB)
 	suite.cleanupExecutor = cleanupExecutor
 }
 
