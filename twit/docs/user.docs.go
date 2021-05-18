@@ -31,10 +31,10 @@ import (
 // swagger:route POST /auth/register Authentication registerUser
 // Register User.
 // responses:
-//   200: response
+//   200: registerResponse
 
 // This text will appear as description of your response body.
-// swagger:response response
+// swagger:response registerResponse
 type registerUserResponseWrapper struct {
 	// in:body
 	Body responses.Response
@@ -45,4 +45,23 @@ type registerParamsWrapper struct {
 	// This text will appear as description of your request body.
 	// in:body
 	Body requests.RegisterUserRequest
+}
+
+// swagger:route POST /auth/login Authentication loginUser
+// Login User.
+// responses:
+//   200: loginResponse
+
+// This text will appear as description of your response body.
+// swagger:response loginResponse
+type loginUserResponseWrapper struct {
+	// in:body
+	Body responses.LoginUserResponse
+}
+
+// swagger:parameters loginUser
+type loginParamsWrapper struct {
+	// This text will appear as description of your request body.
+	// in:body
+	Body requests.LoginUserRequest
 }

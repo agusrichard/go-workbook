@@ -15,7 +15,7 @@ type userHandler struct {
 
 type UserHandler interface {
 	RegisterUser(ctx *gin.Context)
-	// LoginUser(ctx *gin.Context)
+	LoginUser(ctx *gin.Context)
 	// UserProfile(ctx *gin.Context)
 }
 
@@ -52,21 +52,28 @@ func (userHandler *userHandler) RegisterUser(ctx *gin.Context) {
 	}
 }
 
-// func (userHandler *userHandler) LoginUser(ctx *gin.Context) {
-// 	var user models.User
+func (userHandler *userHandler) LoginUser(ctx *gin.Context) {
+	var user models.User
 
-// 	if err := ctx.ShouldBindJSON(&user); err != nil {
-// 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-// 	}
+	if err := ctx.ShouldBindJSON(&user); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
 
-// 	tokenStr, err := userHandler.userUsecase.LoginUser(ctx, user)
-// 	if err == nil {
-// 		ctx.JSON(http.StatusOK, gin.H{
-// 			"message": "Success to login",
-// 			"data":    tokenStr,
-// 		})
-// 	}
-// }
+	response, err := userHandler.userUsecase.LoginUser(user)
+	if err == nil {
+		ctx.JSON(http.StatusOK, responses.LoginUserResponse{
+			Success: true,
+			Message: "Success to login",
+			Data:    response,
+		})
+	} else {
+		ctx.JSON(int(err.StatusCode), responses.LoginUserResponse{
+			Success: false,
+			Message: err.Error(),
+			Data:    response,
+		})
+	}
+}
 
 // func (userHandler *userHandler) UserProfile(ctx *gin.Context) {
 // 	user, err := userHandler.userUsecase.UserProfile(ctx, ctx.GetString("Email"))

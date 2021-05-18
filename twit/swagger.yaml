@@ -2,6 +2,52 @@ basePath: /
 consumes:
 - application/json
 definitions:
+  DeletedAt:
+    $ref: '#/definitions/NullTime'
+  LoginData:
+    properties:
+      access-token:
+        type: string
+        x-go-name: AccessToken
+      user:
+        $ref: '#/definitions/User'
+    type: object
+    x-go-package: twit/models/responses
+  LoginUserRequest:
+    properties:
+      email:
+        type: string
+        x-go-name: Email
+      password:
+        type: string
+        x-go-name: Password
+    type: object
+    x-go-package: twit/models/requests
+  LoginUserResponse:
+    properties:
+      data:
+        $ref: '#/definitions/LoginData'
+      message:
+        type: string
+        x-go-name: Message
+      success:
+        type: boolean
+        x-go-name: Success
+    type: object
+    x-go-package: twit/models/responses
+  NullTime:
+    description: |-
+      NullTime implements the Scanner interface so
+      it can be used as a scan destination, similar to NullString.
+    properties:
+      Time:
+        format: date-time
+        type: string
+      Valid:
+        type: boolean
+    title: NullTime represents a time.Time that may be null.
+    type: object
+    x-go-package: database/sql
   RegisterUserRequest:
     properties:
       email:
@@ -28,12 +74,54 @@ definitions:
         x-go-name: Success
     type: object
     x-go-package: twit/models/responses
+  User:
+    properties:
+      DeletedAt:
+        $ref: '#/definitions/DeletedAt'
+      createdAt:
+        format: date-time
+        type: string
+        x-go-name: CreatedAt
+      email:
+        type: string
+        x-go-name: Email
+      id:
+        format: uint64
+        type: integer
+        x-go-name: ID
+      password:
+        type: string
+        x-go-name: Password
+      updatedAt:
+        format: date-time
+        type: string
+        x-go-name: UpdatedAt
+      username:
+        type: string
+        x-go-name: Username
+    type: object
+    x-go-package: twit/models
 host: localhost:9090
 info:
   description: Documentation of our Twit Application.
   title: Twit Application.
   version: 1.0.0
 paths:
+  /auth/login:
+    post:
+      operationId: loginUser
+      parameters:
+      - description: This text will appear as description of your request body.
+        in: body
+        name: Body
+        schema:
+          $ref: '#/definitions/LoginUserRequest'
+      responses:
+        "200":
+          $ref: '#/responses/loginResponse'
+      summary: Login User.
+      tags:
+      - Authentication
   /auth/register:
     post:
       operationId: registerUser
@@ -45,14 +133,18 @@ paths:
           $ref: '#/definitions/RegisterUserRequest'
       responses:
         "200":
-          $ref: '#/responses/response'
+          $ref: '#/responses/registerResponse'
       summary: Register User.
       tags:
       - Authentication
 produces:
 - application/json
 responses:
-  response:
+  loginResponse:
+    description: This text will appear as description of your response body.
+    schema:
+      $ref: '#/definitions/LoginUserResponse'
+  registerResponse:
     description: This text will appear as description of your response body.
     schema:
       $ref: '#/definitions/Response'

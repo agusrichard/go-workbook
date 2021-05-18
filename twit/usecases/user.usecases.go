@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"twit/models"
+	"twit/models/responses"
 	"twit/repositories"
 	"twit/utils"
 )
@@ -14,7 +15,7 @@ type userUsecase struct {
 
 type UserUsecase interface {
 	RegisterUser(user models.User) *models.RequestError
-	// LoginUser(ctx *gin.Context, userRequest models.User) (string, *models.RequestError)
+	LoginUser(userRequest models.User) (responses.LoginData, *models.RequestError)
 	// UserProfile(ctx *gin.Context, email string) (models.User, *models.RequestError)
 }
 
@@ -46,24 +47,41 @@ func (userUsecase *userUsecase) RegisterUser(user models.User) *models.RequestEr
 	return err
 }
 
-// func (userUsecase *userUsecase) LoginUser(ctx *gin.Context, userRequest models.User) (string, error) {
-// 	if userRequest.Email == "" || userRequest.Password == "" {
-// 		err := errors.New("Please provide email and password")
-// 		utils.Logging(ctx, err, http.StatusBadRequest)
-// 		return "", err
-// 	}
-// 	user, err := userUsecase.userRepository.GetUserData(ctx, userRequest.Email)
+func (userUsecase *userUsecase) LoginUser(userRequest models.User) (responses.LoginData, *models.RequestError) {
+	var result responses.LoginData
 
-// 	if verified := utils.CheckPasswordHash(userRequest.Password, user.Password); !verified {
-// 		err = errors.New("Wrong email or password")
-// 		utils.Logging(ctx, err, http.StatusBadRequest)
-// 		return "", err
-// 	}
+	if userRequest.Email == "" || userRequest.Password == "" {
+		err := &models.RequestError{
+			StatusCode: http.StatusBadRequest,
+			Err:        errors.New("Please provide email and password"),
+		}
+		return result, err
+	}
+	user, err := userUsecase.userRepository.GetUserData(userRequest.Email)
+	if err != nil {
+		return result, err
+	}
 
-// 	tokenStr, err := utils.GenerateToken(user)
+	if verified := utils.CheckPasswordHash(userRequest.Password, user.Password); !verified {
+		err := &models.RequestError{
+			StatusCode: http.StatusBadRequest,
+			Err:        errors.New("Wrong email or password"),
+		}
+		utils.Logging(err)
+		return result, err
+	}
 
-// 	return tokenStr, err
-// }
+	tokenStr, err := utils.GenerateToken(user)
+	if err != nil {
+		return result, err
+	}
+
+	loginData := responses.LoginData{
+		AccessToken: tokenStr,
+		User:        user,
+	}
+	return loginData, nil
+}
 
 // func (userUsecase *userUsecase) UserProfile(ctx *gin.Context, email string) (models.User, error) {
 // 	user, err := userUsecase.userRepository.GetUserData(ctx, email)

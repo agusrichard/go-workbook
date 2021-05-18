@@ -15,7 +15,7 @@ type userRepository struct {
 
 type UserRepository interface {
 	RegisterUser(user models.User) *models.RequestError
-	// GetUserData(ctx *gin.Context, email string) (models.User, error)
+	GetUserData(email string) (models.User, *models.RequestError)
 }
 
 func InitUserRepository(db *gorm.DB) UserRepository {
@@ -38,10 +38,17 @@ func (userRepository *userRepository) RegisterUser(user models.User) *models.Req
 	return nil
 }
 
-// func (userRepository *userRepository) GetUserData(ctx *gin.Context, email string) (models.User, error) {
-// 	var user models.User
-// 	result := userRepository.db.First(&user, "email = ?", email)
-// 	utils.Logging(ctx, result.Error, http.StatusInternalServerError)
+func (userRepository *userRepository) GetUserData(email string) (models.User, *models.RequestError) {
+	var user models.User
+	result := userRepository.db.First(&user, "email = ?", email)
+	if result.Error != nil {
+		err := &models.RequestError{
+			StatusCode: http.StatusBadRequest,
+			Err:        errors.New("No user found"),
+		}
+		utils.Logging(err)
+		return models.User{}, err
+	}
 
-// 	return user, result.Error
-// }
+	return user, nil
+}

@@ -74,7 +74,7 @@ func SetupServer() *gin.Engine {
 
 	// Router for user
 	router.POST("/auth/register", handlers.UserHandler.RegisterUser)
-	// router.POST("/auth/login", handlers.UserHandler.LoginUser)
+	router.POST("/auth/login", handlers.UserHandler.LoginUser)
 
 	// authorized := router.Group("/user")
 	// authorized.Use(middlewares.AuthenticateUser())
