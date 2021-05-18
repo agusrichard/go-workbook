@@ -3,19 +3,24 @@ package main
 import (
 	"context"
 	"fmt"
+	"redis-yo/configs"
+	"redis-yo/handlers"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/gin-gonic/gin"
 )
 
 var ctx = context.Background()
 
 func main() {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     "redis:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
+	rdb := configs.InitializeRedis()
+	pong, _ := rdb.Ping(ctx).Result()
+	fmt.Println(pong)
 
-	pong, err := rdb.Ping(ctx).Result()
-	fmt.Println(pong, err)
+	router := gin.Default()
+
+	handler := handlers.InitExampleHandler(rdb)
+
+	router.GET("/:input", handler.MainHandler)
+
+	router.Run(":5000")
 }
