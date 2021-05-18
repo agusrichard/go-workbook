@@ -1,7 +1,6 @@
 package userRepositoryTests
 
 import (
-	"fmt"
 	"testing"
 	"twit/configs"
 	"twit/models"
@@ -37,7 +36,6 @@ func (suite *RepositoryRegisterUserSuite) TestRegisterUserEmptyEmail() {
 		Username: "username",
 	}
 	err := suite.repository.RegisterUser(user)
-	fmt.Println("Error", err)
 	suite.Error(err)
 }
 
@@ -47,7 +45,6 @@ func (suite *RepositoryRegisterUserSuite) TestRegisterUserEmptyPassword() {
 		Username: "username",
 	}
 	err := suite.repository.RegisterUser(user)
-	fmt.Println("Error", err)
 	suite.Error(err)
 }
 
@@ -57,7 +54,6 @@ func (suite *RepositoryRegisterUserSuite) TestRegisterUserEmptyUsername() {
 		Password: "password",
 	}
 	err := suite.repository.RegisterUser(user)
-	fmt.Println("Error", err)
 	suite.Error(err)
 }
 

@@ -16,6 +16,22 @@ func mainHandler(ctx *gin.Context) {
 	})
 }
 
+func CORSMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
+}
+
 func SetupRepositories() Repositories {
 	// Configurations, database settings and auto migrations
 	configModel := configs.GetConfig()
@@ -51,6 +67,8 @@ func SetupServer() *gin.Engine {
 	repositories := SetupRepositories()
 	usecases := SetupUsecases(repositories)
 	handlers := SetupHandlers(usecases)
+
+	router.Use(CORSMiddleware())
 
 	router.GET("/", mainHandler)
 

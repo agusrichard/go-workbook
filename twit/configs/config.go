@@ -1,7 +1,7 @@
 package configs
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"twit/models"
 
@@ -15,7 +15,7 @@ func GetConfig() *models.Config {
 		err := godotenv.Load(".env")
 
 		if err != nil {
-			fmt.Println("Error while reading the env file", err)
+			log.Println("Error while reading the env file", err)
 			panic(err)
 		}
 	}

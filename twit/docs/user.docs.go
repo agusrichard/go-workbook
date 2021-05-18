@@ -1,11 +1,11 @@
-// Package classification awesome.
+// Package classification Twit Application.
 //
-// Documentation of our awesome API.
+// Documentation of our Twit Application.
 //
-//     Schemes: http
+//     Schemes: http, https
 //     BasePath: /
 //     Version: 1.0.0
-//     Host: some-url.com
+//     Host: localhost:9090
 //
 //     Consumes:
 //     - application/json
@@ -22,3 +22,27 @@
 //
 // swagger:meta
 package docs
+
+import (
+	"twit/models/requests"
+	"twit/models/responses"
+)
+
+// swagger:route POST /auth/register Authentication registerUser
+// Register User.
+// responses:
+//   200: response
+
+// This text will appear as description of your response body.
+// swagger:response response
+type registerUserResponseWrapper struct {
+	// in:body
+	Body responses.Response
+}
+
+// swagger:parameters registerUser
+type registerParamsWrapper struct {
+	// This text will appear as description of your request body.
+	// in:body
+	Body requests.RegisterUserRequest
+}

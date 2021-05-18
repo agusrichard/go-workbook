@@ -73,7 +73,6 @@ package tests
 // func loginUserCycle(t *testing.T, url string, userMap map[string]string, expectFail bool) {
 // 	requestBody, err := json.Marshal(userMap)
 // 	target := fmt.Sprintf("%s/user/login", url)
-// 	fmt.Println("target", target)
 // 	response, err := http.Post(target, "application/json", bytes.NewBuffer(requestBody))
 
 // 	if !expectFail {

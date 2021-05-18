@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"twit/configs"
-	"twit/models"
+	"twit/models/responses"
 	"twit/servers"
 	"twit/utils"
 
@@ -48,7 +48,7 @@ func (suite *HandlerRegisterUserSuite) TestRegisterSingleUserPositive() {
 	suite.Equal(http.StatusOK, response.StatusCode)
 
 	defer response.Body.Close()
-	body := models.Response{}
+	body := responses.Response{}
 	json.NewDecoder(response.Body).Decode(&body)
 	suite.Equal("Success to register user", body.Message)
 	suite.Equal(true, body.Success)
@@ -67,7 +67,7 @@ func (suite *HandlerRegisterUserSuite) TestRegisterSameUserTwiceNegative() {
 	suite.Equal(http.StatusOK, response.StatusCode)
 
 	defer response.Body.Close()
-	body := models.Response{}
+	body := responses.Response{}
 	json.NewDecoder(response.Body).Decode(&body)
 	suite.Equal("Success to register user", body.Message)
 	suite.Equal(true, body.Success)
@@ -84,7 +84,7 @@ func (suite *HandlerRegisterUserSuite) TestRegisterSameUserTwiceNegative() {
 	suite.Equal(http.StatusBadRequest, response.StatusCode)
 
 	defer response.Body.Close()
-	body = models.Response{}
+	body = responses.Response{}
 	json.NewDecoder(response.Body).Decode(&body)
 	suite.Equal("This email has been registered. Choose another one", body.Message)
 	suite.Equal(false, body.Success)
@@ -102,7 +102,7 @@ func (suite *HandlerRegisterUserSuite) TestRegisterUserNoEmailNegative() {
 	suite.Equal(http.StatusBadRequest, response.StatusCode)
 
 	defer response.Body.Close()
-	body := models.Response{}
+	body := responses.Response{}
 	json.NewDecoder(response.Body).Decode(&body)
 	suite.Equal("Please provide email or password", body.Message)
 	suite.Equal(false, body.Success)
@@ -120,7 +120,7 @@ func (suite *HandlerRegisterUserSuite) TestRegisterUserNoPasswordNegative() {
 	suite.Equal(http.StatusBadRequest, response.StatusCode)
 
 	defer response.Body.Close()
-	body := models.Response{}
+	body := responses.Response{}
 	json.NewDecoder(response.Body).Decode(&body)
 	suite.Equal("Please provide email or password", body.Message)
 	suite.Equal(false, body.Success)
@@ -138,7 +138,7 @@ func (suite *HandlerRegisterUserSuite) TestRegisterUserNoUsernamePositive() {
 	suite.Equal(http.StatusOK, response.StatusCode)
 
 	defer response.Body.Close()
-	body := models.Response{}
+	body := responses.Response{}
 	json.NewDecoder(response.Body).Decode(&body)
 	suite.Equal("Success to register user", body.Message)
 	suite.Equal(true, body.Success)

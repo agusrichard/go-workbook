@@ -1,0 +1,79 @@
+basePath: /
+consumes:
+- application/json
+definitions:
+  RegisterUserRequest:
+    properties:
+      email:
+        type: string
+        x-go-name: Email
+      password:
+        type: string
+        x-go-name: Password
+      username:
+        type: string
+        x-go-name: Username
+    type: object
+    x-go-package: twit/models/requests
+  Response:
+    properties:
+      data:
+        type: object
+        x-go-name: Data
+      message:
+        type: string
+        x-go-name: Message
+      success:
+        type: boolean
+        x-go-name: Success
+    type: object
+    x-go-package: twit/models/responses
+host: localhost:9090
+info:
+  description: Documentation of our Twit Application.
+  title: Twit Application.
+  version: 1.0.0
+paths:
+  /auth/login:
+    post:
+      operationId: loginUser
+      parameters:
+      - description: This text will appear as description of your request body.
+        in: body
+        name: Body
+        schema:
+          $ref: '#/definitions/RegisterUserRequest'
+      responses:
+        "200":
+          $ref: '#/responses/response'
+      summary: Login User.
+      tags:
+      - auth-tag
+  /auth/register:
+    post:
+      operationId: registerUser
+      parameters:
+      - description: This text will appear as description of your request body.
+        in: body
+        name: Body
+        schema:
+          $ref: '#/definitions/RegisterUserRequest'
+      responses:
+        "200":
+          $ref: '#/responses/response'
+      summary: Register User.
+      tags:
+      - auth-tag
+produces:
+- application/json
+responses:
+  response:
+    description: This text will appear as description of your response body.
+    schema:
+      $ref: '#/definitions/Response'
+schemes:
+- http
+securityDefinitions:
+  basic:
+    type: basic
+swagger: "2.0"
