@@ -28,6 +28,15 @@ services:
       - POSTGRES_DB=${DB}
     volumes:
       - twit_db:/var/lib/postgresql/data
+  swagger-ui:
+    image: swaggerapi/swagger-ui
+    container_name: swagger-ui
+    ports:
+      - "8080:8080"
+    environment:
+      - API_URL=./swagger.yaml
+    volumes:
+      - ./swagger.yaml:/usr/share/nginx/html/swagger.yaml
 volumes:
   twit_db:
     driver: local

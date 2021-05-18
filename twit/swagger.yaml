@@ -34,21 +34,6 @@ info:
   title: Twit Application.
   version: 1.0.0
 paths:
-  /auth/login:
-    post:
-      operationId: loginUser
-      parameters:
-      - description: This text will appear as description of your request body.
-        in: body
-        name: Body
-        schema:
-          $ref: '#/definitions/RegisterUserRequest'
-      responses:
-        "200":
-          $ref: '#/responses/response'
-      summary: Login User.
-      tags:
-      - auth-tag
   /auth/register:
     post:
       operationId: registerUser
@@ -63,7 +48,7 @@ paths:
           $ref: '#/responses/response'
       summary: Register User.
       tags:
-      - auth-tag
+      - Authentication
 produces:
 - application/json
 responses:
@@ -73,6 +58,7 @@ responses:
       $ref: '#/definitions/Response'
 schemes:
 - http
+- https
 securityDefinitions:
   basic:
     type: basic
