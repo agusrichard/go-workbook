@@ -78,9 +78,16 @@ func (userHandler *userHandler) LoginUser(ctx *gin.Context) {
 func (userHandler *userHandler) UserProfile(ctx *gin.Context) {
 	user, err := userHandler.userUsecase.UserProfile(ctx.GetString("Email"))
 	if err == nil {
-		ctx.JSON(http.StatusOK, gin.H{
-			"message": "Success to get user profile",
-			"data":    user,
+		ctx.JSON(http.StatusOK, responses.Response{
+			Success: true,
+			Message: "Success to get user profile",
+			Data:    user,
+		})
+	} else {
+		ctx.JSON(int(err.StatusCode), responses.Response{
+			Success: false,
+			Message: err.Error(),
+			Data:    user,
 		})
 	}
 }

@@ -90,5 +90,5 @@ func (userUsecase *userUsecase) UserProfile(email string) (models.User, *models.
 		return result, err
 	}
 
-	return user, err
+	return user, nil
 }
