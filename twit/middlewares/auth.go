@@ -2,7 +2,6 @@ package middlewares
 
 import (
 	"net/http"
-	"strings"
 	"twit/utils"
 
 	"github.com/gin-gonic/gin"
@@ -11,11 +10,11 @@ import (
 func AuthenticateUser() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		authorizationHeader := ctx.Request.Header["Authorization"][0]
-		token := strings.Split(authorizationHeader, " ")[1]
 
-		user, err := utils.ParseToken(token)
+		user, err := utils.ParseToken(authorizationHeader)
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"success": false,
 				"message": "You are unauthorized",
 				"data":    nil,
 			})

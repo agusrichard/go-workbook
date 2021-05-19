@@ -16,7 +16,7 @@ type userUsecase struct {
 type UserUsecase interface {
 	RegisterUser(user models.User) *models.RequestError
 	LoginUser(userRequest models.User) (responses.LoginData, *models.RequestError)
-	// UserProfile(ctx *gin.Context, email string) (models.User, *models.RequestError)
+	UserProfile(email string) (models.User, *models.RequestError)
 }
 
 func InitUserUsecase(userRepository repositories.UserRepository) UserUsecase {
@@ -83,8 +83,12 @@ func (userUsecase *userUsecase) LoginUser(userRequest models.User) (responses.Lo
 	return loginData, nil
 }
 
-// func (userUsecase *userUsecase) UserProfile(ctx *gin.Context, email string) (models.User, error) {
-// 	user, err := userUsecase.userRepository.GetUserData(ctx, email)
+func (userUsecase *userUsecase) UserProfile(email string) (models.User, *models.RequestError) {
+	var result models.User
+	user, err := userUsecase.userRepository.GetUserData(email)
+	if err != nil {
+		return result, err
+	}
 
-// 	return user, err
-// }
+	return user, err
+}

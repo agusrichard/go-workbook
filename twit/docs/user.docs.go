@@ -16,9 +16,11 @@
 //     Security:
 //     - basic
 //
-//    SecurityDefinitions:
-//    basic:
-//      type: basic
+//     SecurityDefinitions:
+//     Bearer:
+//       type: apiKey
+//       name: Authorization
+//       in: header
 //
 // swagger:meta
 package docs
@@ -27,6 +29,8 @@ import (
 	"twit/models/requests"
 	"twit/models/responses"
 )
+
+// ================================ REGISTER ================================
 
 // swagger:route POST /auth/register Authentication registerUser
 // Register User.
@@ -47,6 +51,8 @@ type registerParamsWrapper struct {
 	Body requests.RegisterUserRequest
 }
 
+// ================================ LOGIN ================================
+
 // swagger:route POST /auth/login Authentication loginUser
 // Login User.
 // responses:
@@ -64,4 +70,20 @@ type loginParamsWrapper struct {
 	// This text will appear as description of your request body.
 	// in:body
 	Body requests.LoginUserRequest
+}
+
+// ================================ GET PROFILE ================================
+
+// swagger:route GET /user/profile Authentication getProfile
+// Get Profile.
+// responses:
+//   200: getProfileResponse
+// Security:
+//   Bearer: []
+
+// This text will appear as description of your response body.
+// swagger:response getProfileResponse
+type getProfileResponseWrapper struct {
+	// in:body
+	Body responses.LoginUserResponse
 }

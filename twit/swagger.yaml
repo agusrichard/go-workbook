@@ -137,9 +137,25 @@ paths:
       summary: Register User.
       tags:
       - Authentication
+  /user/profile:
+    get:
+      operationId: getProfile
+      responses:
+        "200":
+          $ref: '#/responses/getProfileResponse'
+      security:
+      - Bearer:
+        - '[]'
+      summary: Get Profile.
+      tags:
+      - Authentication
 produces:
 - application/json
 responses:
+  getProfileResponse:
+    description: This text will appear as description of your response body.
+    schema:
+      $ref: '#/definitions/LoginUserResponse'
   loginResponse:
     description: This text will appear as description of your response body.
     schema:
@@ -152,6 +168,8 @@ schemes:
 - http
 - https
 securityDefinitions:
-  basic:
-    type: basic
+  Bearer:
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

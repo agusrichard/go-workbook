@@ -16,7 +16,7 @@ type userHandler struct {
 type UserHandler interface {
 	RegisterUser(ctx *gin.Context)
 	LoginUser(ctx *gin.Context)
-	// UserProfile(ctx *gin.Context)
+	UserProfile(ctx *gin.Context)
 }
 
 func InitUserHandler(userUsecase usecases.UserUsecase) UserHandler {
@@ -75,12 +75,12 @@ func (userHandler *userHandler) LoginUser(ctx *gin.Context) {
 	}
 }
 
-// func (userHandler *userHandler) UserProfile(ctx *gin.Context) {
-// 	user, err := userHandler.userUsecase.UserProfile(ctx, ctx.GetString("Email"))
-// 	if err == nil {
-// 		ctx.JSON(http.StatusOK, gin.H{
-// 			"message": "Success to get user profile",
-// 			"data":    user,
-// 		})
-// 	}
-// }
+func (userHandler *userHandler) UserProfile(ctx *gin.Context) {
+	user, err := userHandler.userUsecase.UserProfile(ctx.GetString("Email"))
+	if err == nil {
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "Success to get user profile",
+			"data":    user,
+		})
+	}
+}

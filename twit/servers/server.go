@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"twit/configs"
 	"twit/handlers"
+	"twit/middlewares"
 	"twit/repositories"
 	"twit/usecases"
 
@@ -76,11 +77,11 @@ func SetupServer() *gin.Engine {
 	router.POST("/auth/register", handlers.UserHandler.RegisterUser)
 	router.POST("/auth/login", handlers.UserHandler.LoginUser)
 
-	// authorized := router.Group("/user")
-	// authorized.Use(middlewares.AuthenticateUser())
-	// {
-	// 	authorized.GET("/profile", handlers.UserHandler.UserProfile)
-	// }
+	authorized := router.Group("/user")
+	authorized.Use(middlewares.AuthenticateUser())
+	{
+		authorized.GET("/profile", handlers.UserHandler.UserProfile)
+	}
 
 	return router
 }
