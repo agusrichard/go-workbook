@@ -2,7 +2,6 @@ package configs
 
 import (
 	"fmt"
-	"log"
 	"twit/models"
 
 	"gorm.io/driver/postgres"
@@ -31,7 +30,6 @@ func InitializeDB(config *models.Config) *gorm.DB {
 		panic("Failed to connect to the database")
 	}
 
-	log.Println("Connected to the database")
 	return db
 }
 
