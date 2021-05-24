@@ -2,6 +2,9 @@ version: "3.8"
 services:
   app:
     build:
+      args:
+        - USER_ID=1000
+        - GROUP_ID=1000
       context: .
       dockerfile: Dockerfile
     container_name: restapi_app
