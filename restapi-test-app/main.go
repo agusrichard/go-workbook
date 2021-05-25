@@ -1,10 +1,15 @@
 package main
 
 import (
-	"fmt"
+	"github.com/gin-gonic/gin"
+	"restapi-tested-app/config"
+	"restapi-tested-app/server"
 )
 
 func main() {
-	fmt.Println("Hello World")
-	fmt.Println("Hello, from me!")
+	configs := config.GetConfig()
+	config.ConnectDB(configs)
+
+	router := gin.Default()
+	server.SetupServer(router)
 }
