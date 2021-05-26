@@ -249,9 +249,179 @@ func TestMyApplication_SendYo(t *testing.T) {
 
 ```
 
+**What “accept interfaces, return structs” means in Go**
+- > All problems in computer science can be solved by another level of indirection, except of course for the problem of too many indirections
+  > >David J. Wheeler
+- Interfaces abstract away from structures in Go
+- Tt doesn’t make sense to create this complexity until it’s needed
+- > Always [abstract] things when you actually need them, never when you just foresee that you need them.
+- You can control the return values of a function, but you can't control the input type.
+- That's why it's better for us to accept interface, instead of concrete types.
+- Another aspect of simplification is removing unnecessary detail.
+- If you don't need some recipes to make something, then don't list it on your need-list.
+- Check this snippet:
+```go
+type Database struct{ }
+func (d *Database) AddUser(s string) {...}
+func (d *Database) RemoveUser(s string) {...}
+func NewUser(d *Database, firstName string, lastName string) {
+  d.AddUser(firstName + lastName)
+}
+```
+- On the above code, we define database to have 2 methods. But on NewUser database job is just to add new user. No need to add RemoveUser
+- This is probably the better way:
+```go
+type DatabaseWriter interface {
+  AddUser(string)
+}
+func NewUser(d DatabaseWriter, firstName string, lastName string) {
+  d.AddUser(firstName + lastName)
+}
+```
+
+**Preemptive Interface Anti-Pattern in Go**
+- Interfaces are a way to describe behavior
+- Preempttive interfaces are when developer codes to an interface before an actual need arises.
+- Example:
+```go
+type Auth interface {
+  GetUser() (User, error)
+}
+type authImpl struct {
+  // ...
+}
+func NewAuth() Auth {
+  return &authImpl
+}
+```
+- You have to change the code if you use this
+```java
+// auth.java
+public class Auth {
+  public boolean canAction() {
+    // ...
+  }
+}
+// logic.java
+public class Logic {
+  public void takeAction(Auth a) {
+    // ...
+  }
+}
+```
+- For example, you want to take any objects in takeAction as long as it has canAction inside it. How it would be?
+- Better code in java
+```java
+// auth.java
+public interface Auth {
+  public boolean canAction()
+}
+// authimpl.java
+class AuthImpl implements Auth {
+}
+// logic.java
+public class Logic {
+  public void takeAction(Auth a) {
+    // ...
+  }
+}
+```
+- (Personal notes) It'e better to pass a pointer of a struct rather than the struct itself. It makes sure that we check for its nullity.
+- Go uses implicit interface, which means concrete objects (structs) don't need to explicitly defined that they are using this interface. It's different from explicit interface like in Java.
+- Usually you don't need preemptive interface in go.
+- Go is at its most powerful when interface definitions are small.
+- In the standard library, most interface definitions are a single method
+- Accepting interfaces gives your API the greatest flexibility and returning structs allows the people reading your code to quickly navigate to the correct function
+- Unnecessary abstraction creates unnecessary complication. Don’t over complicate code until it’s needed.
+
+**Structuring Applications in Go**
+- Don't use global variables
+- You may decide to add a global database connection or a global configuration variable but these globals are a nightmare to use when writing unit tests
+- Snippet
+```go
+type HelloHandler struct {
+    db *sql.DB
+}
+func (h *HelloHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    var name string
+    // Execute the query.
+    row := h.db.QueryRow(“SELECT myname FROM mytable”)
+    if err := row.Scan(&name); err != nil {
+        http.Error(w, err.Error(), 500)
+        return
+    }
+    // Write it back to the client.
+    fmt.Fprintf(w, “hi %s!\n”, name)
+}
+```
+- This is how to use wrapper https://gist.github.com/tsenart/5fc18c659814c078378d
+```go
+func helloHandler(db *sql.DB) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    		var name string
+    		// Execute the query.
+    		row := db.QueryRow("SELECT myname FROM mytable")
+    		if err := row.Scan(&name); err != nil {
+        		http.Error(w, err.Error(), 500)
+        		return
+    		}
+    		// Write it back to the client.
+    		fmt.Fprintf(w, "hi %s!\n", name)
+    	})
+}
+
+func withMetrics(l *log.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		began := time.Now()
+		next.ServeHTTP(w, r)
+		l.Printf("%s %s took %s", r.Method, r.URL, time.Since(began))
+	})
+}
+```
+- Separate your binary from your application
+- Library driven development
+- Wrap types for application-specific context
+```go
+package myapp
+import (
+    "database/sql"
+)
+type DB struct {
+    *sql.DB
+}
+type Tx struct {
+    *sql.Tx
+}
+```
+```go
+// Open returns a DB reference for a data source.
+func Open(dataSourceName string) (*DB, error) {
+    db, err := sql.Open("postgres", dataSourceName)
+    if err != nil {
+        return nil, err
+    }
+    return &DB{db}, nil
+}
+// Begin starts an returns a new transaction.
+func (db *DB) Begin() (*Tx, error) {
+    tx, err := db.DB.Begin()
+    if err != nil {
+        return nil, err
+    }
+    return &Tx{tx}, nil
+}
+```
+- Don’t go crazy with subpackages
+- Using a single root package
+- Organize the most important type at the top of the file and add types in decreasing importance towards the bottom of the file.
+- If you’re writing Go projects the same way you write Ruby, Java, or Node.js projects then you’re probably going to be fighting with the language.
+
 ## References:
 - https://golang.org/doc/code
 - https://tutorialedge.net/golang/improving-your-tests-with-testify-go/
 - https://www.guru99.com/unit-test-vs-integration-test.html#:~:text=Unit%20Testing%20test%20each%20part,see%20they%20are%20working%20fine.&text=Unit%20Testing%20is%20executed%20by,performed%20by%20the%20testing%20team.
 - https://codeburst.io/unit-testing-for-rest-apis-in-go-86c70dada52d
 - https://medium.com/@benbjohnson/structuring-tests-in-go-46ddee7a25c
+- https://medium.com/@cep21/what-accept-interfaces-return-structs-means-in-go-2fe879e25ee8
+- https://medium.com/@cep21/preemptive-interface-anti-pattern-in-go-54c18ac0668a
+- https://medium.com/@benbjohnson/structuring-applications-in-go-3b04be4ff091
