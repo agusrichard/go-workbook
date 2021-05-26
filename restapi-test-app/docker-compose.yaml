@@ -19,7 +19,9 @@ services:
     links:
       - db
   db:
-    image: postgres:13
+    build:
+      context: .
+      dockerfile: postgres.Dockerfile
     ports:
       - "5432:5432"
     container_name: restapi_db

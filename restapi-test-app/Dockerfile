@@ -17,4 +17,6 @@ RUN addgroup --gid $USER_ID arichard
 RUN adduser --disabled-password --gecos '' --uid $USER_ID --gid $GROUP_ID arichard
 USER arichard
 
+COPY sql/tweet.sql /docker-entrypoint-initdb.d/
+
 CMD air
