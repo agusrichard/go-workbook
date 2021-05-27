@@ -14,16 +14,14 @@ type TweetUsecase struct {
 }
 
 // CreateTweet provides a mock function with given fields: tweet
-func (_m *TweetUsecase) CreateTweet(tweet *entities.Tweet) *entities.AppError {
+func (_m *TweetUsecase) CreateTweet(tweet *entities.Tweet) error {
 	ret := _m.Called(tweet)
 
-	var r0 *entities.AppError
-	if rf, ok := ret.Get(0).(func(*entities.Tweet) *entities.AppError); ok {
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*entities.Tweet) error); ok {
 		r0 = rf(tweet)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*entities.AppError)
-		}
+		r0 = ret.Error(0)
 	}
 
 	return r0

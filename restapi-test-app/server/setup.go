@@ -25,7 +25,7 @@ func registerRoutes(router *gin.Engine, hndlrs *Handlers) {
 
 	router.GET("/", rootHandler())
 	router.GET("/tweet", serveHttp(hndlrs.TweetHandler.GetAllTweets))
-	router.GET("/tweet/:id", hndlrs.TweetHandler.GetTweetByID())
+	router.GET("/tweet/:id", serveHttp(hndlrs.TweetHandler.GetTweetByID))
 	router.GET("/tweet/search", hndlrs.TweetHandler.SearchTweetByText())
 	router.POST("/tweet", serveHttp(hndlrs.TweetHandler.CreateTweet))
 	router.PUT("/tweet", hndlrs.TweetHandler.UpdateTweet())

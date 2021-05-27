@@ -29,7 +29,7 @@ func ServeHTTP(handle appHandler) gin.HandlerFunc {
 			ctx.JSON(result.StatusCode, entities.Response{
 				Success: false,
 				Message: result.Err.Error(),
-				Data: nil,
+				Data: result.Data,
 			})
 		}
 	}

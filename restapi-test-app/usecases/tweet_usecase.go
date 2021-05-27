@@ -16,7 +16,7 @@ type TweetUsecase interface {
 	GetAllTweets() (*[]entities.Tweet, error)
 	GetTweetByID(id int) (*entities.Tweet, error)
 	SearchTweetByText(text string) (*[]entities.Tweet, error)
-	CreateTweet(tweet *entities.Tweet) *entities.AppError
+	CreateTweet(tweet *entities.Tweet) error
 	UpdateTweet(tweet *entities.Tweet) error
 	DeleteTweet(id int) error
 }
@@ -30,14 +30,21 @@ func (usecase *tweetUsecase) GetAllTweets() (*[]entities.Tweet, error) {
 }
 
 func (usecase *tweetUsecase) GetTweetByID(id int) (*entities.Tweet, error) {
-	return usecase.tweetRepository.GetTweetByID(id)
+	tweet, _ := usecase.tweetRepository.GetTweetByID(id)
+	if tweet == nil {
+		return nil, &entities.AppError{
+			Err: errors.New("tweet is not found"),
+			StatusCode: http.StatusNotFound,
+		}
+	}
+	return tweet, nil
 }
 
 func (usecase *tweetUsecase) SearchTweetByText(text string) (*[]entities.Tweet, error) {
 	return usecase.tweetRepository.SearchTweetByText("%"+text+"%")
 }
 
-func (usecase *tweetUsecase) CreateTweet(tweet *entities.Tweet) *entities.AppError {
+func (usecase *tweetUsecase) CreateTweet(tweet *entities.Tweet) error {
 	if tweet == nil {
 		return &entities.AppError{
 			Err: errors.New("tweet is nil pointer"),
@@ -45,7 +52,7 @@ func (usecase *tweetUsecase) CreateTweet(tweet *entities.Tweet) *entities.AppErr
 		}
 	}
 
-	if tweet.Username == "" || tweet.Text == "" {
+	if !tweet.IsValid() {
 		return &entities.AppError{
 			Err: errors.New("username and text cannot be empty"),
 			StatusCode: http.StatusBadRequest,

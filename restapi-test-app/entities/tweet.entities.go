@@ -11,3 +11,10 @@ type Tweet struct {
 	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 	ModifiedAt time.Time `json:"modifiedAt" db:"modified_at"`
 }
+
+func (tweet *Tweet) IsValid() bool {
+	if tweet.Username == "" || tweet.Text == "" {
+		return false
+	}
+	return true
+}

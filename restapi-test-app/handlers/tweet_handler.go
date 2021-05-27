@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"restapi-tested-app/entities"
@@ -14,7 +15,7 @@ type tweetHandler struct {
 
 type TweetHandler interface {
 	GetAllTweets(ctx *gin.Context) *entities.AppResult
-	GetTweetByID() gin.HandlerFunc
+	GetTweetByID(ctx *gin.Context) *entities.AppResult
 	SearchTweetByText() gin.HandlerFunc
 	CreateTweet(ctx *gin.Context) *entities.AppResult
 	UpdateTweet() gin.HandlerFunc
@@ -33,38 +34,40 @@ func (handler *tweetHandler) GetAllTweets(*gin.Context) *entities.AppResult {
 		result.StatusCode = http.StatusOK
 		result.Message = "Success to get all tweets"
 		if len(*tweets) == 0 {
-			result.Data = []interface{}{}
+			result.Data = []struct{}{}
 		} else {
 			result.Data = tweets
 		}
 	} else {
 		result.StatusCode = http.StatusInternalServerError
 		result.Err = err
-		result.Data = []interface{}{}
+		result.Data = []struct{}{}
 	}
 
 	return &result
 }
 
-func (handler *tweetHandler) GetTweetByID() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		id, err := strconv.Atoi(ctx.Param("id"))
+func (handler *tweetHandler) GetTweetByID(ctx *gin.Context) *entities.AppResult {
+	var result entities.AppResult
+	id, err := strconv.Atoi(ctx.Param("id"))
 
-		tweet, err := handler.tweetUsecase.GetTweetByID(id)
-		if err == nil {
-			ctx.JSON(http.StatusOK, entities.Response{
-				Success: true,
-				Message: "Hello World!",
-				Data: tweet,
-			})
+	tweet, err := handler.tweetUsecase.GetTweetByID(id)
+	if err == nil {
+		result.StatusCode = http.StatusOK
+		result.Message = fmt.Sprintf("Success to get tweet with id %d", id)
+		if tweet == nil {
+			result.Data = struct{}{}
 		} else {
-			ctx.JSON(http.StatusInternalServerError, entities.Response{
-				Success: false,
-				Message: "INTERNAL SERVER ERROR",
-				Data: struct{}{},
-			})
+			result.Data = tweet
 		}
+	} else {
+		fmt.Println()
+		result.StatusCode = err.(*entities.AppError).StatusCode
+		result.Err = err.(*entities.AppError).Err
+		result.Data = struct{}{}
 	}
+
+	return &result
 }
 
 func (handler *tweetHandler) SearchTweetByText() gin.HandlerFunc {
@@ -104,9 +107,9 @@ func (handler *tweetHandler) CreateTweet(ctx *gin.Context) *entities.AppResult {
 		result.Message = "Success to create tweet"
 		result.StatusCode = http.StatusCreated
 	} else {
-		result.Err = err.Err
-		result.Message = err.Err.Error()
-		result.StatusCode = err.StatusCode
+		result.Err = err.(*entities.AppError).Err
+		result.Message = err.(*entities.AppError).Error()
+		result.StatusCode = err.(*entities.AppError).StatusCode
 	}
 
 	return &result
