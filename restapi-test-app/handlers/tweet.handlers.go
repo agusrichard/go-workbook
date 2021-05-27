@@ -71,7 +71,7 @@ func (handler *tweetHandler) SearchTweetByText() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		searchParam := ctx.Query("search")
 
-		tweets, err := handler.tweetUsecase.SearchTextByText(searchParam)
+		tweets, err := handler.tweetUsecase.SearchTweetByText(searchParam)
 		if err == nil {
 			ctx.JSON(http.StatusOK, entities.Response{
 				Success: true,

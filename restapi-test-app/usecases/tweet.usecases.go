@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"restapi-tested-app/entities"
 	"restapi-tested-app/repositories"
@@ -16,7 +15,7 @@ type tweetUsecase struct {
 type TweetUsecase interface {
 	GetAllTweets() (*[]entities.Tweet, error)
 	GetTweetByID(id int) (*entities.Tweet, error)
-	SearchTextByText(text string) (*[]entities.Tweet, error)
+	SearchTweetByText(text string) (*[]entities.Tweet, error)
 	CreateTweet(tweet *entities.Tweet) *entities.AppError
 	UpdateTweet(tweet *entities.Tweet) error
 	DeleteTweet(id int) error
@@ -34,12 +33,18 @@ func (usecase *tweetUsecase) GetTweetByID(id int) (*entities.Tweet, error) {
 	return usecase.tweetRepository.GetTweetByID(id)
 }
 
-func (usecase *tweetUsecase) SearchTextByText(text string) (*[]entities.Tweet, error) {
+func (usecase *tweetUsecase) SearchTweetByText(text string) (*[]entities.Tweet, error) {
 	return usecase.tweetRepository.SearchTweetByText("%"+text+"%")
 }
 
 func (usecase *tweetUsecase) CreateTweet(tweet *entities.Tweet) *entities.AppError {
-	fmt.Println("tweet", tweet)
+	if tweet == nil {
+		return &entities.AppError{
+			Err: errors.New("tweet is nil pointer"),
+			StatusCode: http.StatusInternalServerError,
+		}
+	}
+
 	if tweet.Username == "" || tweet.Text == "" {
 		return &entities.AppError{
 			Err: errors.New("username and text cannot be empty"),

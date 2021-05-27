@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"errors"
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"restapi-tested-app/entities"
@@ -69,6 +70,10 @@ func (repository *tweetRepository) SearchTweetByText(text string) (*[]entities.T
 
 func (repository *tweetRepository) CreateTweet(tweet *entities.Tweet) error {
 	var err error
+
+	if tweet == nil {
+		return errors.New("tweet can not be nil")
+	}
 
 	tx, err := repository.db.Beginx()
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"restapi-tested-app/config"
 	"restapi-tested-app/entities"
+	"restapi-tested-app/utils"
 )
 
 
@@ -20,11 +21,13 @@ func rootHandler() gin.HandlerFunc {
 }
 
 func registerRoutes(router *gin.Engine, hndlrs *Handlers) {
+	serveHttp := utils.ServeHTTP
+
 	router.GET("/", rootHandler())
-	router.GET("/tweet", serveHTTP(hndlrs.TweetHandler.GetAllTweets))
+	router.GET("/tweet", serveHttp(hndlrs.TweetHandler.GetAllTweets))
 	router.GET("/tweet/:id", hndlrs.TweetHandler.GetTweetByID())
 	router.GET("/tweet/search", hndlrs.TweetHandler.SearchTweetByText())
-	router.POST("/tweet", serveHTTP(hndlrs.TweetHandler.CreateTweet))
+	router.POST("/tweet", serveHttp(hndlrs.TweetHandler.CreateTweet))
 	router.PUT("/tweet", hndlrs.TweetHandler.UpdateTweet())
 	router.DELETE("/tweet/:id", hndlrs.TweetHandler.DeleteTweet())
 }

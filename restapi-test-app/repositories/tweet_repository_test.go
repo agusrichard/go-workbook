@@ -28,16 +28,27 @@ func (suite *tweetRepositorySuite) TearDownTest() {
 	defer suite.cleanupExecutor.TruncateTable([]string{"tweets"})
 }
 
-func (suite *tweetRepositorySuite) TestCreateTweet() {
+func (suite *tweetRepositorySuite) TestCreateTweetPositive() {
 	tweet := entities.Tweet{
 		Username: "username",
 		Text: "text",
 	}
 
 	err := suite.repository.CreateTweet(&tweet)
-	suite.NoError(err)
+	suite.NoError(err, "no error when create tweet with valid input")
 }
 
-func TestRepositoryRegisterUserSuite(t *testing.T) {
+func (suite *tweetRepositorySuite) TestCreateTweetNilPointerNegative() {
+	err := suite.repository.CreateTweet(nil)
+	suite.Error(err, "create error with nil input returns error")
+}
+
+func (suite *tweetRepositorySuite) TestCreateTweetEmptyFieldsPositive() {
+	var tweet entities.Tweet
+	err := suite.repository.CreateTweet(&tweet)
+	suite.NoError(err, "no error when create tweet with empty fields")
+}
+
+func TestTweetRepository(t *testing.T) {
 	suite.Run(t, new(tweetRepositorySuite))
 }
