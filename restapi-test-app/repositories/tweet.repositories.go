@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	"restapi-tested-app/entities"
 )
@@ -11,7 +12,11 @@ type tweetRepository struct {
 
 type TweetRepository interface {
 	GetAllTweets() (*[]entities.Tweet, error)
+	GetTweetByID(id int) (*entities.Tweet, error)
+	SearchTweetByText(text string) (*[]entities.Tweet, error)
 	CreateTweet(tweet *entities.Tweet) error
+	UpdateTweet(tweet *entities.Tweet) error
+	DeleteTweet(id int) error
 }
 
 func InitializeRepository(db *sqlx.DB) TweetRepository {
@@ -22,6 +27,31 @@ func (repository *tweetRepository) GetAllTweets() (*[]entities.Tweet, error) {
 	var result []entities.Tweet
 	rows, err := repository.db.Queryx(`SELECT id, username, text, created_at, modified_at FROM tweets`)
 
+	for rows.Next() {
+		var tweet entities.Tweet
+		err = rows.StructScan(&tweet)
+		result = append(result, tweet)
+	}
+
+	return &result, err
+}
+
+func (repository *tweetRepository) GetTweetByID(id int) (*entities.Tweet, error) {
+	var tweet entities.Tweet
+
+	err := repository.db.Get(&tweet, `SELECT id, username, text, created_at, modified_at FROM tweets WHERE id=$1;`, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &tweet, nil
+}
+
+func (repository *tweetRepository) SearchTweetByText(text string) (*[]entities.Tweet, error) {
+	var result []entities.Tweet
+	fmt.Println("search text", text)
+
+	rows, err := repository.db.Queryx(`SELECT id, username, text, created_at, modified_at FROM tweets WHERE text ILIKE $1;`, text)
 	for rows.Next() {
 		var tweet entities.Tweet
 		err = rows.StructScan(&tweet)
@@ -54,8 +84,68 @@ func (repository *tweetRepository) CreateTweet(tweet *entities.Tweet) error {
 func insertTweet(tx *sqlx.Tx, tweet *entities.Tweet) error {
 	_, err := tx.NamedExec(`
 		INSERT INTO tweets(username, text)
-		VALUES (:username, :text)
+		VALUES (:username, :text);
 	`, tweet)
+
+	return err
+}
+
+func (repository *tweetRepository) UpdateTweet(tweet *entities.Tweet) error {
+	var err error
+
+	tx, errTx := repository.db.Beginx()
+	if errTx != nil {
+	} else {
+		err = updateTweet(tx, tweet)
+		if err != nil {
+		}
+	}
+
+	if err == nil {
+		tx.Commit()
+	} else {
+		tx.Rollback()
+	}
+
+	return err
+}
+
+func updateTweet(tx *sqlx.Tx, tweet *entities.Tweet) error {
+	_, err := tx.NamedExec(`
+		UPDATE tweets
+		SET username=:username,
+		    text=:text,
+		    modified_at=:modified_at
+		WHERE id=:id;
+	`, tweet)
+
+	return err
+}
+
+func (repository *tweetRepository) DeleteTweet(id int) error {
+	var err error
+
+	tx, errTx := repository.db.Beginx()
+	if errTx != nil {
+	} else {
+		err = deleteTweet(tx, id)
+		if err != nil {
+		}
+	}
+
+	if err == nil {
+		tx.Commit()
+	} else {
+		tx.Rollback()
+	}
+
+	return err
+}
+
+func deleteTweet(tx *sqlx.Tx, id int) error {
+	_, err := tx.Exec(`
+		DELETE FROM tweets WHERE id=$1;
+	`, id)
 
 	return err
 }
