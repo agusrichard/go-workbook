@@ -9,7 +9,6 @@ type Response struct {
 type AppError struct {
 	Err error
 	StatusCode int
-	Message string
 }
 
 type AppResult struct {

@@ -16,7 +16,7 @@ type TweetHandler interface {
 	GetAllTweets(ctx *gin.Context) *entities.AppResult
 	GetTweetByID() gin.HandlerFunc
 	SearchTweetByText() gin.HandlerFunc
-	CreateTweet() gin.HandlerFunc
+	CreateTweet(ctx *gin.Context) *entities.AppResult
 	UpdateTweet() gin.HandlerFunc
 	DeleteTweet() gin.HandlerFunc
 }
@@ -88,30 +88,28 @@ func (handler *tweetHandler) SearchTweetByText() gin.HandlerFunc {
 	}
 }
 
-func (handler *tweetHandler) CreateTweet() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		var tweet entities.Tweet
+func (handler *tweetHandler) CreateTweet(ctx *gin.Context) *entities.AppResult {
+	var tweet entities.Tweet
+	var result entities.AppResult
 
-		if err := ctx.ShouldBindJSON(&tweet); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		err := handler.tweetUsecase.CreateTweet(&tweet)
-		if err == nil {
-			ctx.JSON(http.StatusOK, entities.Response{
-				Success: true,
-				Message: "Hello World!",
-				Data: struct{}{},
-			})
-		} else {
-			ctx.JSON(http.StatusInternalServerError, entities.Response{
-				Success: false,
-				Message: "INTERNAL SERVER ERROR",
-				Data: struct{}{},
-			})
-		}
+	if err := ctx.ShouldBindJSON(&tweet); err != nil {
+		result.Err = err
+		result.Message = "username and text can not be empty"
+		result.StatusCode = http.StatusBadRequest
+		return &result
 	}
+
+	err := handler.tweetUsecase.CreateTweet(&tweet)
+	if err == nil {
+		result.Message = "Success to create tweet"
+		result.StatusCode = http.StatusCreated
+	} else {
+		result.Err = err.Err
+		result.Message = err.Err.Error()
+		result.StatusCode = err.StatusCode
+	}
+
+	return &result
 }
 
 func (handler *tweetHandler) UpdateTweet() gin.HandlerFunc {

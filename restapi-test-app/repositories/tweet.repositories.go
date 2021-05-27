@@ -19,7 +19,7 @@ type TweetRepository interface {
 	DeleteTweet(id int) error
 }
 
-func InitializeRepository(db *sqlx.DB) TweetRepository {
+func InitializeTweetRepository(db *sqlx.DB) TweetRepository {
 	return &tweetRepository{db}
 }
 
@@ -70,11 +70,13 @@ func (repository *tweetRepository) SearchTweetByText(text string) (*[]entities.T
 func (repository *tweetRepository) CreateTweet(tweet *entities.Tweet) error {
 	var err error
 
-	tx, errTx := repository.db.Beginx()
-	if errTx != nil {
+	tx, err := repository.db.Beginx()
+	if err != nil {
+		return err
 	} else {
 		err = insertTweet(tx, tweet)
 		if err != nil {
+			return err
 		}
 	}
 

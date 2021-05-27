@@ -1,6 +1,9 @@
 package usecases
 
 import (
+	"errors"
+	"fmt"
+	"net/http"
 	"restapi-tested-app/entities"
 	"restapi-tested-app/repositories"
 	"time"
@@ -14,7 +17,7 @@ type TweetUsecase interface {
 	GetAllTweets() (*[]entities.Tweet, error)
 	GetTweetByID(id int) (*entities.Tweet, error)
 	SearchTextByText(text string) (*[]entities.Tweet, error)
-	CreateTweet(tweet *entities.Tweet) error
+	CreateTweet(tweet *entities.Tweet) *entities.AppError
 	UpdateTweet(tweet *entities.Tweet) error
 	DeleteTweet(id int) error
 }
@@ -35,9 +38,22 @@ func (usecase *tweetUsecase) SearchTextByText(text string) (*[]entities.Tweet, e
 	return usecase.tweetRepository.SearchTweetByText("%"+text+"%")
 }
 
-func (usecase *tweetUsecase) CreateTweet(tweet *entities.Tweet) error {
+func (usecase *tweetUsecase) CreateTweet(tweet *entities.Tweet) *entities.AppError {
+	fmt.Println("tweet", tweet)
+	if tweet.Username == "" || tweet.Text == "" {
+		return &entities.AppError{
+			Err: errors.New("username and text cannot be empty"),
+			StatusCode: http.StatusBadRequest,
+		}
+	}
 	err := usecase.tweetRepository.CreateTweet(tweet)
-	return err
+	if err != nil {
+		return &entities.AppError{
+			Err: err,
+			StatusCode: http.StatusInternalServerError,
+		}
+	}
+	return nil
 }
 
 func (usecase *tweetUsecase) UpdateTweet(tweet *entities.Tweet) error {

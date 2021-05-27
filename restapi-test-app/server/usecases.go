@@ -6,7 +6,7 @@ type Usecases struct {
 	TweetUsecase usecases.TweetUsecase
 }
 
-func setupUsecases(repos *Repositories) *Usecases {
+func SetupUsecases(repos *Repositories) *Usecases {
 	tweetUsecase := usecases.InitializeTweetUsecase(repos.TweetRepository)
 
 	return &Usecases{

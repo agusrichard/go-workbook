@@ -24,7 +24,7 @@ func registerRoutes(router *gin.Engine, hndlrs *Handlers) {
 	router.GET("/tweet", serveHTTP(hndlrs.TweetHandler.GetAllTweets))
 	router.GET("/tweet/:id", hndlrs.TweetHandler.GetTweetByID())
 	router.GET("/tweet/search", hndlrs.TweetHandler.SearchTweetByText())
-	router.POST("/tweet", hndlrs.TweetHandler.CreateTweet())
+	router.POST("/tweet", serveHTTP(hndlrs.TweetHandler.CreateTweet))
 	router.PUT("/tweet", hndlrs.TweetHandler.UpdateTweet())
 	router.DELETE("/tweet/:id", hndlrs.TweetHandler.DeleteTweet())
 }
@@ -35,9 +35,9 @@ func SetupServer() {
 	configs := config.GetConfig()
 	db := config.ConnectDB(configs)
 
-	repos := setupRepositories(db)
-	uscs := setupUsecases(repos)
-	hdnlrs := setupHandlers(uscs)
+	repos := SetupRepositories(db)
+	uscs := SetupUsecases(repos)
+	hdnlrs := SetupHandlers(uscs)
 
 	router := gin.Default()
 

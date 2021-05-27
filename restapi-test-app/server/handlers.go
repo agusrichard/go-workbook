@@ -11,7 +11,7 @@ type Handlers struct {
 	TweetHandler handlers.TweetHandler
 }
 
-func setupHandlers(uscs *Usecases) *Handlers {
+func SetupHandlers(uscs *Usecases) *Handlers {
 	tweetHandlers := handlers.InitializeTweetHandler(uscs.TweetUsecase)
 
 	return &Handlers{

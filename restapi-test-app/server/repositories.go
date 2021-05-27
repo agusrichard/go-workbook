@@ -9,8 +9,8 @@ type Repositories struct {
 	TweetRepository repositories.TweetRepository
 }
 
-func setupRepositories(db *sqlx.DB) *Repositories {
-	tweetRepository := repositories.InitializeRepository(db)
+func SetupRepositories(db *sqlx.DB) *Repositories {
+	tweetRepository := repositories.InitializeTweetRepository(db)
 
 	return &Repositories{
 		TweetRepository: tweetRepository,
