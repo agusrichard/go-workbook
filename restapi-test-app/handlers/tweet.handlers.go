@@ -13,7 +13,7 @@ type tweetHandler struct {
 }
 
 type TweetHandler interface {
-	GetAllTweets() gin.HandlerFunc
+	GetAllTweets(ctx *gin.Context) *entities.AppResult
 	GetTweetByID() gin.HandlerFunc
 	SearchTweetByText() gin.HandlerFunc
 	CreateTweet() gin.HandlerFunc
@@ -25,23 +25,25 @@ func InitializeTweetHandler(usecase usecases.TweetUsecase) TweetHandler {
 	return &tweetHandler{usecase}
 }
 
-func (handler *tweetHandler) GetAllTweets() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		tweets, err := handler.tweetUsecase.GetAllTweets()
-		if err == nil {
-			ctx.JSON(http.StatusOK, entities.Response{
-				Success: true,
-				Message: "Hello World!",
-				Data: tweets,
-			})
+func (handler *tweetHandler) GetAllTweets(*gin.Context) *entities.AppResult {
+	var result entities.AppResult
+
+	tweets, err := handler.tweetUsecase.GetAllTweets()
+	if err == nil {
+		result.StatusCode = http.StatusOK
+		result.Message = "Success to get all tweets"
+		if len(*tweets) == 0 {
+			result.Data = []interface{}{}
 		} else {
-			ctx.JSON(http.StatusInternalServerError, entities.Response{
-				Success: false,
-				Message: "INTERNAL SERVER ERROR",
-				Data: struct{}{},
-			})
+			result.Data = tweets
 		}
+	} else {
+		result.StatusCode = http.StatusInternalServerError
+		result.Err = err
+		result.Data = []interface{}{}
 	}
+
+	return &result
 }
 
 func (handler *tweetHandler) GetTweetByID() gin.HandlerFunc {

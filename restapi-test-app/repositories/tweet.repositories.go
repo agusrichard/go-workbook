@@ -26,10 +26,16 @@ func InitializeRepository(db *sqlx.DB) TweetRepository {
 func (repository *tweetRepository) GetAllTweets() (*[]entities.Tweet, error) {
 	var result []entities.Tweet
 	rows, err := repository.db.Queryx(`SELECT id, username, text, created_at, modified_at FROM tweets`)
+	if err != nil {
+		return nil, err
+	}
 
 	for rows.Next() {
 		var tweet entities.Tweet
 		err = rows.StructScan(&tweet)
+		if err != nil {
+			return nil, err
+		}
 		result = append(result, tweet)
 	}
 
