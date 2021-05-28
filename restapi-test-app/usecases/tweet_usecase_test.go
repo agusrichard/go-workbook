@@ -1,6 +1,7 @@
 package usecases
 
 import (
+	"errors"
 	"github.com/stretchr/testify/suite"
 	"restapi-tested-app/entities"
 	"restapi-tested-app/mocks"
@@ -71,6 +72,32 @@ func (suite *tweetUsecaseSuite) TestGetAllTweets_FilledSlice_Positive() {
 	suite.NoError(err, "no error when get all tweets")
 	suite.Equal(len(*result), len(tweets), "tweets and result should have the same length")
 	suite.Equal(*result, tweets, "result and tweets are the same")
+}
+
+func (suite *tweetUsecaseSuite) TestGetTweetByID_NotFound_Negative() {
+	id := 1
+
+	suite.repository.On("GetTweetByID", id).Return(nil, errors.New("sql: no rows in result set"))
+
+	result, err := suite.usecase.GetTweetByID(id)
+	suite.Nil(result, "error is returned so result has to be nil")
+	suite.Error(err.(*entities.AppError).Err, "error sql not found")
+	suite.Equal(err.Error(), "tweet is not found")
+	suite.repository.AssertExpectations(suite.T())
+}
+
+func (suite *tweetUsecaseSuite) TestGetTweetByID_Exists_Positive() {
+	id := 1
+	tweet := entities.Tweet{
+		Username: "username",
+		Text: "text",
+	}
+
+	suite.repository.On("GetTweetByID", id).Return(&tweet, nil)
+
+	result, err := suite.usecase.GetTweetByID(id)
+	suite.Nil(err, "no error when return the tweet")
+	suite.Equal(tweet, *result, "result and tweet should be equal")
 }
 
 func TestTweetUsecase(t *testing.T) {

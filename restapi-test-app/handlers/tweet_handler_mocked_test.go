@@ -28,6 +28,7 @@ func (suite *tweetHandlerSuite) SetupTest() {
 	router := gin.Default()
 	router.POST("/tweet", utils.ServeHTTP(handler.CreateTweet))
 	router.GET("/tweet", utils.ServeHTTP(handler.GetAllTweets))
+	router.GET("/tweet/:id", utils.ServeHTTP(handler.GetTweetByID))
 	testingServer := httptest.NewServer(router)
 
 	suite.testingServer = testingServer
@@ -77,7 +78,6 @@ func (suite *tweetHandlerSuite) TestGetAllTweets_Positive() {
 			Text: "text",
 		},
 	}
-	fmt.Println("tweets", tweets)
 
 	suite.usecase.On("GetAllTweets").Return(&tweets, nil)
 
@@ -90,6 +90,26 @@ func (suite *tweetHandlerSuite) TestGetAllTweets_Positive() {
 
 	suite.Equal(http.StatusOK, response.StatusCode)
 	suite.Equal(responseBody.Message, "Success to get all tweets")
+	suite.usecase.AssertExpectations(suite.T())
+}
+
+func (suite *tweetHandlerSuite) TestGetTweetByID_Positive() {
+	id := 1
+	tweet := entities.Tweet{
+		Username: "username",
+		Text: "text",
+	}
+
+	suite.usecase.On("GetTweetByID", id).Return(&tweet, nil)
+	response, err := http.Get(fmt.Sprintf("%s/tweet/%d", suite.testingServer.URL, id))
+	suite.NoError(err, "no error when calling this endpoint")
+	defer response.Body.Close()
+
+	responseBody := entities.Response{}
+	json.NewDecoder(response.Body).Decode(&responseBody)
+
+	suite.Equal(http.StatusOK, response.StatusCode)
+	suite.Equal(responseBody.Message, fmt.Sprintf("Success to get tweet with id %d", id))
 	suite.usecase.AssertExpectations(suite.T())
 }
 

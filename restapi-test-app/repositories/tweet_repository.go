@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"errors"
-	"fmt"
 	"github.com/jmoiron/sqlx"
 	"restapi-tested-app/entities"
 )
@@ -56,7 +55,6 @@ func (repository *tweetRepository) GetTweetByID(id int) (*entities.Tweet, error)
 
 func (repository *tweetRepository) SearchTweetByText(text string) (*[]entities.Tweet, error) {
 	var result []entities.Tweet
-	fmt.Println("search text", text)
 
 	rows, err := repository.db.Queryx(`SELECT id, username, text, created_at, modified_at FROM tweets WHERE text ILIKE $1;`, text)
 	for rows.Next() {

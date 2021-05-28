@@ -5,6 +5,7 @@ services:
       args:
         - USER_ID=1000
         - GROUP_ID=1000
+        - USERNAME=arichard
       context: .
       dockerfile: Dockerfile
     container_name: restapi_app
