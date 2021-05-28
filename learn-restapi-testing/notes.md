@@ -2,7 +2,7 @@
 
 ## Notes:
 
-**Go mod**:
+**[Go mod](https://golang.org/doc/code)**:
 - We don't have to declare the module path belonging to a repository.
 - A module can be defined locally without belonging to a repository.
 - `go install` command builds the module, producing an executable binary.
@@ -11,7 +11,7 @@
 - `go mod tidy` command adds missing module requirements for imported packages.
 - `go clean -modcache`: remove all downloaded modules.
 
-**Improving Your Go Tests and Mocks With Testify**
+**[Improving Your Go Tests and Mocks With Testify](https://tutorialedge.net/golang/improving-your-tests-with-testify-go/)**
 - Assertion example on `main_test.go`
 ```go
 package main
@@ -104,7 +104,7 @@ func TestMyService_ChargeCustomer(t *testing.T) {
 }
 ```
 
-**Unit Test vs Integration Test: What's the Difference?**
+**[Unit Test vs Integration Test: What's the Difference?](https://www.guru99.com/unit-test-vs-integration-test.html#:~:text=Unit%20Testing%20test%20each%20part,see%20they%20are%20working%20fine.&text=Unit%20Testing%20is%20executed%20by,performed%20by%20the%20testing%20team.)**
 - Unit test: Test the unit of code (component).
 - Integration test: Individual units of a program are combined and tested as a group.
 - Unit Testing tests only the functionality of the units themselves and may not catch integration errors, or other system-wide issues
@@ -114,7 +114,7 @@ func TestMyService_ChargeCustomer(t *testing.T) {
 - White Box Testing is software testing technique in which internal structure, design and coding of software are tested to verify flow of input-output and to improve design, usability and security
 - Black Box Testing is a software testing method in which the functionalities of software applications are tested without having knowledge of internal code structure, implementation details and internal paths. Black Box Testing mainly focuses on input and output of software applications. (also known as behavioral testing)
 
-**Unit Testing for REST APIs in Go**
+**[Unit Testing for REST APIs in Go](https://codeburst.io/unit-testing-for-rest-apis-in-go-86c70dada52d)**
 - Snippet 1
 ```go
 func TestGetEntries(t *testing.T) {
@@ -166,16 +166,7 @@ func TestGetEntryByID(t *testing.T) {
 }
 ```
 
-**Develop REST API using Go and Test using various methods**
-- REST is not a standard but a set of recommendations and constraints for RESTful web services.
-    - Client-Server: SystemA makes an HTTP request to a URL hosted by SystemB, which returns a response.
-    - Stateless: REST is stateless: the client request should contain all the information necessary to respond to a request.
-    - Cacheable: A response should be defined as cacheable or not.
-    - Layered: The requesting client need not know whether it’s communicating with the actual server, a proxy, or any other intermediary.
-    - Uniform interface – REST is defined by four interface constraints: identification of resources; manipulation of resources through representations; self-descriptive messages; and, hypermedia as the engine of application state.
-    - Code on demand (optional) – REST allows client functionality to be extended by downloading and executing code in the form of applets or scripts. This simplifies clients by reducing the number of features required to be pre-implemented.
-
-**Structuring Tests in Go**
+**[Structuring Tests in Go](https://medium.com/@benbjohnson/structuring-tests-in-go-46ddee7a25c)**
 - Tests should be two things: self-contained and easily reproducible
 - Self-contained means changing one part of our test suite does not drastically affect another part.
 - Reproducible means someone doesn’t have to go through multiple steps to get their test suite running the same as mine.
@@ -249,7 +240,7 @@ func TestMyApplication_SendYo(t *testing.T) {
 
 ```
 
-**What “accept interfaces, return structs” means in Go**
+**[What “accept interfaces, return structs” means in Go](https://medium.com/@cep21/what-accept-interfaces-return-structs-means-in-go-2fe879e25ee8)**
 - > All problems in computer science can be solved by another level of indirection, except of course for the problem of too many indirections
   > >David J. Wheeler
 - Interfaces abstract away from structures in Go
@@ -279,7 +270,7 @@ func NewUser(d DatabaseWriter, firstName string, lastName string) {
 }
 ```
 
-**Preemptive Interface Anti-Pattern in Go**
+**[Preemptive Interface Anti-Pattern in Go](https://medium.com/@cep21/preemptive-interface-anti-pattern-in-go-54c18ac0668a)**
 - Interfaces are a way to describe behavior
 - Preempttive interfaces are when developer codes to an interface before an actual need arises.
 - Example:
@@ -334,7 +325,7 @@ public class Logic {
 - Accepting interfaces gives your API the greatest flexibility and returning structs allows the people reading your code to quickly navigate to the correct function
 - Unnecessary abstraction creates unnecessary complication. Don’t over complicate code until it’s needed.
 
-**Structuring Applications in Go**
+**[Structuring Applications in Go](https://medium.com/@benbjohnson/structuring-applications-in-go-3b04be4ff091)**
 - Don't use global variables
 - You may decide to add a global database connection or a global configuration variable but these globals are a nightmare to use when writing unit tests
 - Snippet
@@ -416,6 +407,86 @@ func (db *DB) Begin() (*Tx, error) {
 - Organize the most important type at the top of the file and add types in decreasing importance towards the bottom of the file.
 - If you’re writing Go projects the same way you write Ruby, Java, or Node.js projects then you’re probably going to be fighting with the language.
 
+**[Error handling and Go](https://blog.golang.org/error-handling-and-go)**
+- Standard usage:
+```go
+f, err := os.Open("filename.ext")
+if err != nil {
+    log.Fatal(err)
+}
+// do something with the open *File f
+```
+- If you want to create custom error 1
+```go
+// errorString is a trivial implementation of error.
+type errorString struct {
+    s string
+}
+
+func (e *errorString) Error() string {
+    return e.s
+}
+```
+- Error message that probably you want to consider 
+```go
+func Sqrt(f float64) (float64, error) {
+    if f < 0 {
+        return 0, errors.New("math: square root of negative number")
+    }
+    // implementation
+}
+```
+- Formatting error message, this returns error type
+```go
+fmt.Errorf("math: square root of negative number %g", f)
+```
+- Another example of custom error
+```go
+type SyntaxError struct {
+    msg    string // description of error
+    Offset int64  // error occurred after reading Offset bytes
+}
+
+func (e *SyntaxError) Error() string { return e.msg }
+```
+- Simplify repetitive error handling
+```go
+func init() {
+    http.HandleFunc("/view", viewRecord)
+}
+
+func viewRecord(w http.ResponseWriter, r *http.Request) {
+    c := appengine.NewContext(r)
+    key := datastore.NewKey(c, "Record", r.FormValue("id"), 0, nil)
+    record := new(Record)
+    if err := datastore.Get(c, key, record); err != nil {
+        http.Error(w, err.Error(), 500)
+        return
+    }
+    if err := viewTemplate.Execute(w, record); err != nil {
+        http.Error(w, err.Error(), 500)
+    }
+}
+
+type appHandler func(http.ResponseWriter, *http.Request) error
+
+func viewRecord(w http.ResponseWriter, r *http.Request) error {
+  c := appengine.NewContext(r)
+  key := datastore.NewKey(c, "Record", r.FormValue("id"), 0, nil)
+  record := new(Record)
+  if err := datastore.Get(c, key, record); err != nil {
+      return err
+  }
+  return viewTemplate.Execute(w, record)
+}
+
+func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+  if err := fn(w, r); err != nil {
+    http.Error(w, err.Error(), 500)
+  }
+}
+```
+
 ## References:
 - https://golang.org/doc/code
 - https://tutorialedge.net/golang/improving-your-tests-with-testify-go/
@@ -425,3 +496,4 @@ func (db *DB) Begin() (*Tx, error) {
 - https://medium.com/@cep21/what-accept-interfaces-return-structs-means-in-go-2fe879e25ee8
 - https://medium.com/@cep21/preemptive-interface-anti-pattern-in-go-54c18ac0668a
 - https://medium.com/@benbjohnson/structuring-applications-in-go-3b04be4ff091
+- https://blog.golang.org/error-handling-and-go
