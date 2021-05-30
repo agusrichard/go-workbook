@@ -1,11 +1,13 @@
-# Conventions and Guidelines
+# Coding Conventions and Guidelines
+
+---
 
 ## Intro
 Coding standards are a series of procedures for a particular programming language specifying a programming style, the methods, and different procedures.
 A coding standard makes sure that all the developers working on the project are following certain specified guidelines. The code can be easily understood and proper consistency is maintained.
 > **The finished program code should look like that it has been written by a single developer, in a single session.**
 
-### In general, best practices of better code:
+### In general, best practices of better code: (**IMPORTANT!**)
 - Code comments and proper documentation </br>
   It is advisable to start every method or routine with the comment specifying what a routine, method or a function does, about its various parameters, its return values, errors and exceptions (if any).
 - Use indentation </br>
@@ -14,7 +16,7 @@ A coding standard makes sure that all the developers working on the project are 
   Comments are good, but too much of them will lead us to chaos. We should avoid write comments on obvious things, or if our code is self-explained then no need to add comments.
 - Grouping code </br>
   Remember that high cohesion code is good. Small and simple code is easy to manage and considered to be better.
-- Proper and consistent scheme for naming
+- Proper and consistent scheme for naming </br>
   Choose one naming scheme and stick with it for the rest of the project.
 - Principles of DRY </br>
   The good practice is to write our own code and don't copy-paste too frequently.
@@ -25,9 +27,56 @@ A coding standard makes sure that all the developers working on the project are 
 - Proper organizations of files and folders.
 - Refactoring code </br>
   We have to implement the Open/Close Principle which basically states our code is closed for modification but open for extension.
+  
+## Project Structure
+
+There are several goals we should achieve when structuring our project:
+- Consistent
+- Easy to understand, navigate, reason about (**make sense**)
+- Easy to change
+- Loosely coupled
+- Easy to test
+- As simple as possible, but no simplistic
+- Design reflects exactly how the software works
+- Structure reflects the design exactly
+
+Then, the (kinda) best way to structure our project is by following Group by functions (layered architecure).
+This project structure pattern is suitable for medium to large applications without having to overkill and use more complex structure.
+
+We divide each package into its own functionalities, e.g. `package handlers` is responsible for HTTP handler for all endpoints.
+
+### How to implement the Structure: (**IMPORTANT!**)
+
+The list of packages (which means they have their own folders)
+- handlers </br>
+  We put all HTTP handler methods inside this folder. Then divide it into its own file. For example, all handlers for `vessels` functionality have to be put in this file which means we have to create `vessels.go` file.
+  The main task of `handlers` is to parse the data for further processing and tidy up the response, so it will be readable for the user.
+- usecases </br>
+  All business logic implementations go here. Which means, this is the package where the data from user is processed.
+  This package might include processing step before the data goes to the database or aggregate the queried data or combine several functionalities into one bucket.
+  The bottom line is we have to put the business logic here and nowhere else.
+- repositories </br>
+  This package serves as the layer where our application makes contact with the database.
+  Its main task is only database related functionalities, such as querying, inserting, updating, and deleting.
+  Don't put excessive logic in here (e.g., control flow or conditional statements).
+  If it is related to the database, like error handling for database querying, then it is fine.
+- models </br>
+  Any data entities or blueprints are belong in here. For example, if we have user data, then we have to make its blueprint as `struct` (with optional tags).
+  We also allowed to write helper methods, related to the entity. (e.g., if user need to be validated then it makes sense if the struct has method Validate() or IsValid())
+- utilities </br>
+  Any additional helpers are stored in this package.
+  
+If we need new packages to comprehend the growing complexity of our codebase, then feel free to add new one.
+This structure should make our life easy, not giving us another headaches.
+
+
 
 
 ## References:
 1. Coding standards
-   - https://www.multidots.com/importance-of-code-quality-and-coding-standard-in-software-development/#:~:text=Coding%20standards%20help%20in%20the,and%20thereby%20reduce%20the%20errors.&text=If%20the%20coding%20standards%20are%20followed%2C%20the%20code%20is%20consistent,at%20any%20point%20in%20time.
-   - https://medium.com/leafgrowio-engineering/why-is-coding-standards-important-319fce79d1a4
+  - https://www.multidots.com/importance-of-code-quality-and-coding-standard-in-software-development/#:~:text=Coding%20standards%20help%20in%20the,and%20thereby%20reduce%20the%20errors.&text=If%20the%20coding%20standards%20are%20followed%2C%20the%20code%20is%20consistent,at%20any%20point%20in%20time.
+  - https://medium.com/leafgrowio-engineering/why-is-coding-standards-important-319fce79d1a4
+2. Project structure in go
+  - https://www.youtube.com/watch?v=oL6JBUk6tj0
+  - https://tutorialedge.net/golang/go-project-structure-best-practices/
+  - https://www.wolfe.id.au/2020/03/10/how-do-i-structure-my-go-project/

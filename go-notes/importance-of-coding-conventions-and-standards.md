@@ -45,6 +45,8 @@ This makes sure our code easy and comfortable to read.
 - Refactoring code </br>
 We have to implement the Open/Close Principle which basically states our code is closed for modification but open for extension.
   
+---
+
 ## [Why are coding standards important?](https://medium.com/leafgrowio-engineering/why-is-coding-standards-important-319fce79d1a4)
 
 When we write code, we need to make sure that any developer can understand it easily, including ourselves in the future.
