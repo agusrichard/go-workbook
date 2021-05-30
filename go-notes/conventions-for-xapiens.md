@@ -1,6 +1,5 @@
 # Coding Conventions and Guidelines
 
----
 
 ## Intro
 Coding standards are a series of procedures for a particular programming language specifying a programming style, the methods, and different procedures.
@@ -28,7 +27,6 @@ A coding standard makes sure that all the developers working on the project are 
 - Refactoring code </br>
   We have to implement the Open/Close Principle which basically states our code is closed for modification but open for extension.
   
----
 
 ## Project Structure
 
@@ -76,9 +74,10 @@ This structure should make our life easy, not giving us another headaches.
 This is how our project structure would look like: </br>
 ![img_2.png](images/img_1.png)
 
----
-
 ## Naming Conventions
+
+> Good naming is like a good joke. If you have to explain it, it’s not funny.
+— Dave Cheney
 
 ### 1. Folder name
 - Use plural noun to name a directory or folder, if this folder contains several files **with the same functionalities**.
@@ -204,12 +203,123 @@ More about errors on later section
 ### 11. Constants
 Constant should use all capital letters and use underscore _ to separate words.
 
----
-
 ## Error Handling
 
+> Don’t just check errors, handle them gracefully
 
----
+Three way to handle errors:
+### 1. Sentinel errors
+```go
+if err == ErrSomething { … }
+```
+
+With this strategy we have to evaluate the type of the error, or the string representation of the error.
+Certainly not a good way since we are comparing the content of the error.
+
+### 2. Error types (custom error)
+```go
+if err, ok := err.(SomeType); ok { … }
+```
+```go
+type MyError struct {
+        Msg string
+        File string
+        Line int
+}
+
+func (e *MyError) Error() string { 
+        return fmt.Sprintf("%s:%d: %s”, e.File, e.Line, e.Msg)
+}
+
+return &MyError{"Something happened", “server.go", 42}
+```
+```go
+err := something()
+switch err := err.(type) {
+case nil:
+        // call succeeded, nothing to do
+case *MyError:
+        fmt.Println(“error occurred on line:”, err.Line)
+default:
+// unknown error
+}
+```
+
+With error types, we can pass another properties which an error probably has. The cons are we need to import the error types resulting in avoidable dependencies and complex error handling.
+
+### 3. Opaque Errors
+
+With opaque error, we just have to return it to the caller without assuming what it is.
+The bad side is we don't know where the error starts, which resulting in tedious debugging sesion.
+
+As a work around, we have to use errors package. We just need two functions, they are Wrap and Cause.
+
+The main task of errors.Wrap is to wrap our error and add another additional context (resulting in error stack trace).
+Meanwhile, errors.Cause is reverse operation or Wrap, if we want to access the error we can use errors.Cause
+
+```go
+func ReadFile(path string) ([]byte, error) {
+        f, err := os.Open(path)
+        if err != nil {
+                return nil, errors.Wrap(err, "open failed")
+        } 
+        defer f.Close()
+ 
+        buf, err := ioutil.ReadAll(f)
+        if err != nil {
+                return nil, errors.Wrap(err, "read failed")
+        }
+        return buf, nil
+}
+```
+
+```go
+func ReadConfig() ([]byte, error) {
+        home := os.Getenv("HOME")
+        config, err := ReadFile(filepath.Join(home, ".settings.xml"))
+        return config, errors.Wrap(err, "could not read config")
+}
+ 
+func main() {
+        _, err := ReadConfig()
+        if err != nil {
+                errors.Println(err)
+                os.Exit(1)
+        }
+}
+```
+
+### Practices about Error Handling:
+1. Only handle errors once </br>
+If we make less than one decision, we’re ignoring the error. As we see here, the error from w.Write is being discarded.
+```go
+func Write(w io.Writer, buf []byte) {
+        w.Write(buf)
+}
+```
+But making more than one decision in response to a single error is also problematic.
+```go
+func Write(w io.Writer, buf []byte) error {
+        _, err := w.Write(buf)
+        if err != nil {
+                // annotated error goes to log file
+                log.Println("unable to write:", err)
+ 
+                // unannotated error returned to caller
+                return err
+        }
+        return nil
+}
+```
+```go
+func Write(w io.Write, buf []byte) error {
+        _, err := w.Write(buf)
+        return errors.Wrap(err, "write failed")
+}
+```
+2. Handle and write error decently </br>
+Start by using Opaque error when writing and error, then handle this error as the above code suggests.
+If we think error types or sentinel errors are better, then go for it by keep following the good practice.
 
 ## References:
 ### 1. Coding standards
@@ -226,3 +336,6 @@ Constant should use all capital letters and use underscore _ to separate words.
   - https://blog.golang.org/package-names
   - https://rakyll.org/style-packages/
   - https://logansbailey.com/plural-vs-singular-directory-names#:~:text=Directory%20names%20should%20be%20singular,and%20performing%20actions%20on%20them.
+### 4. Error Handling
+  - https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully
+  - https://www.youtube.com/watch?v=lsBF58Q-DnY
