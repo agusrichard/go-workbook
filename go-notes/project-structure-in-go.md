@@ -112,3 +112,4 @@ Goals we should consider:
 - https://www.youtube.com/watch?v=oL6JBUk6tj0
 - https://tutorialedge.net/golang/go-project-structure-best-practices/
 - https://www.wolfe.id.au/2020/03/10/how-do-i-structure-my-go-project/
+- https://levelup.gitconnected.com/a-practical-approach-to-structuring-go-applications-7f77d7f9c189 (UNREAD)
