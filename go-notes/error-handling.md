@@ -243,5 +243,167 @@ Minimise the number of sentinel error values in your program and convert errors 
 
 Finally, use errors.Cause to recover the underlying error if you need to inspect it.
 
+### [Error handling and Go](https://blog.golang.org/error-handling-and-go)
+- Standard usage:
+```go
+f, err := os.Open("filename.ext")
+if err != nil {
+    log.Fatal(err)
+}
+// do something with the open *File f
+```
+- If you want to create custom error 1
+```go
+// errorString is a trivial implementation of error.
+type errorString struct {
+    s string
+}
+
+func (e *errorString) Error() string {
+    return e.s
+}
+```
+- Error message that probably you want to consider
+```go
+func Sqrt(f float64) (float64, error) {
+    if f < 0 {
+        return 0, errors.New("math: square root of negative number")
+    }
+    // implementation
+}
+```
+- Formatting error message, this returns error type
+```go
+fmt.Errorf("math: square root of negative number %g", f)
+```
+- Another example of custom error
+```go
+type SyntaxError struct {
+    msg    string // description of error
+    Offset int64  // error occurred after reading Offset bytes
+}
+
+func (e *SyntaxError) Error() string { return e.msg }
+```
+- Simplify repetitive error handling
+```go
+func init() {
+    http.HandleFunc("/view", viewRecord)
+}
+
+func viewRecord(w http.ResponseWriter, r *http.Request) {
+    c := appengine.NewContext(r)
+    key := datastore.NewKey(c, "Record", r.FormValue("id"), 0, nil)
+    record := new(Record)
+    if err := datastore.Get(c, key, record); err != nil {
+        http.Error(w, err.Error(), 500)
+        return
+    }
+    if err := viewTemplate.Execute(w, record); err != nil {
+        http.Error(w, err.Error(), 500)
+    }
+}
+
+type appHandler func(http.ResponseWriter, *http.Request) error
+
+func viewRecord(w http.ResponseWriter, r *http.Request) error {
+  c := appengine.NewContext(r)
+  key := datastore.NewKey(c, "Record", r.FormValue("id"), 0, nil)
+  record := new(Record)
+  if err := datastore.Get(c, key, record); err != nil {
+      return err
+  }
+  return viewTemplate.Execute(w, record)
+}
+
+func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+  if err := fn(w, r); err != nil {
+    http.Error(w, err.Error(), 500)
+  }
+}
+```
+
+### [Error handling and Go](https://blog.golang.org/error-handling-and-go)
+- Standard usage:
+```go
+f, err := os.Open("filename.ext")
+if err != nil {
+    log.Fatal(err)
+}
+// do something with the open *File f
+```
+- If you want to create custom error 1
+```go
+// errorString is a trivial implementation of error.
+type errorString struct {
+    s string
+}
+
+func (e *errorString) Error() string {
+    return e.s
+}
+```
+- Error message that probably you want to consider
+```go
+func Sqrt(f float64) (float64, error) {
+    if f < 0 {
+        return 0, errors.New("math: square root of negative number")
+    }
+    // implementation
+}
+```
+- Formatting error message, this returns error type
+```go
+fmt.Errorf("math: square root of negative number %g", f)
+```
+- Another example of custom error
+```go
+type SyntaxError struct {
+    msg    string // description of error
+    Offset int64  // error occurred after reading Offset bytes
+}
+
+func (e *SyntaxError) Error() string { return e.msg }
+```
+- Simplify repetitive error handling
+```go
+func init() {
+    http.HandleFunc("/view", viewRecord)
+}
+
+func viewRecord(w http.ResponseWriter, r *http.Request) {
+    c := appengine.NewContext(r)
+    key := datastore.NewKey(c, "Record", r.FormValue("id"), 0, nil)
+    record := new(Record)
+    if err := datastore.Get(c, key, record); err != nil {
+        http.Error(w, err.Error(), 500)
+        return
+    }
+    if err := viewTemplate.Execute(w, record); err != nil {
+        http.Error(w, err.Error(), 500)
+    }
+}
+
+type appHandler func(http.ResponseWriter, *http.Request) error
+
+func viewRecord(w http.ResponseWriter, r *http.Request) error {
+  c := appengine.NewContext(r)
+  key := datastore.NewKey(c, "Record", r.FormValue("id"), 0, nil)
+  record := new(Record)
+  if err := datastore.Get(c, key, record); err != nil {
+      return err
+  }
+  return viewTemplate.Execute(w, record)
+}
+
+func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+  if err := fn(w, r); err != nil {
+    http.Error(w, err.Error(), 500)
+  }
+}
+```
+
 ## References:
 - https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully
+- https://www.youtube.com/watch?v=lsBF58Q-DnY
+- https://blog.golang.org/error-handling-and-go

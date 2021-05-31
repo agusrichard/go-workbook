@@ -320,6 +320,151 @@ func Write(w io.Write, buf []byte) error {
 2. Handle and write error decently </br>
 Start by using Opaque error when writing and error, then handle this error as the above code suggests.
 If we think error types or sentinel errors are better, then go for it by keep following the good practice.
+   
+## Testing
+
+> A code that cannot be tested is flawed
+
+### 1. Create test file in the same folder containing our main program/logic </br>
+If we create a file `vessel.go` in a package `repository`. Then the name of the test file is `vessel_test.go`.
+Both `vessel.go` and `vessel_test.go` are in the same folder (in this case `repositories`).
+
+### 2. Naming our test function </br>
+The rule of thumb of naming test function is Test + [function name] + _ + [short description about testcase] + _ + [Positive/Negative Test]
+
+Positive test cases ensure that users can perform appropriate actions when using valid data.
+
+Negative test cases are performed to try to “break” the software by performing invalid (or unacceptable) actions, or by using invalid data.
+
+```go
+// file_test.go
+
+func TestCreateUser_ValidInput_Positive(t *testing.T) {...}
+```
+
+For test, it seemed like we broke our own rule defined previously. But the reason for this naming scheme is to add verbosity when running the tests.
+An example of exception of a rule.
+
+### 3. Using assertions
+If we don't need setup or teardown functions when running the tests, then just use normal testing function and assertions provided by testify.
+
+```go
+// file_test.go
+
+func TestCreateUser_ValidInput_Positive(t *testing.T) {
+	assert.Equal(t, 10, 10, 'create a verbose test message here')
+	
+	// or
+	assert := assert.New(t)
+	assert.Equal(10, 10, 'create a verbose test message here')
+}
+```
+
+### 4. Using suites
+We need suites if we have to run our test cases as a group. For example, when we need setup and teardown functions for our tests.
+```go
+type tweetRepositorySuite struct {
+	suite.Suite
+	repository TweetRepository
+	cleanupExecutor utils.TruncateTableExecutor
+}
+
+// This function will only run once, before all tests
+func (suite *tweetRepositorySuite) SetupSuite() {
+	configs := config.GetConfig()
+	db := config.ConnectDB(configs)
+	repository := InitializeTweetRepository(db)
+
+	suite.repository = repository
+
+	suite.cleanupExecutor = utils.InitTruncateTableExecutor(db)
+}
+
+// This function will run after each test, we can use this for a clean up process
+func (suite *tweetRepositorySuite) TearDownTest() {
+	defer suite.cleanupExecutor.TruncateTable([]string{"tweets"})
+}
+
+// This function will run before each test
+func (suite *tweetRepositorySuite) SetupTest() {...}
+
+// This function will run after all tests in a suite have run
+func (suite *tweetRepositorySuite) TearDownSuite() {...}
+
+// Example of using suite to assert something
+func (suite *tweetRepositorySuite) TestCreateTweet_Positive() {
+  tweet := entities.Tweet{
+    Username: "username",
+    Text: "text",
+  }
+  
+  err := suite.repository.CreateTweet(&tweet)
+  suite.NoError(err, "no error when create tweet with valid input")
+}
+
+// The main function to run all our tests
+func TestTweetRepository(t *testing.T) {
+  suite.Run(t, new(tweetRepositorySuite))
+}
+```
+
+### 5. Using mocks
+
+It's better for us to mock interface rather than concrete struct (with some methods).
+First, if we do this then we implement the 5th principle of SOLID, which is Dependency Inversion Principle.
+Second, it's easier to mock interface. By using mockery, we can generate the mocked methods, without having to define them manually.
+
+For example we have this interface:
+```go
+type TweetRepository interface {
+	GetAllTweets() (*[]entities.Tweet, error)
+	GetTweetByID(id int) (*entities.Tweet, error)
+	SearchTweetByText(text string) (*[]entities.Tweet, error)
+	CreateTweet(tweet *entities.Tweet) error
+	UpdateTweet(tweet *entities.Tweet) error
+	DeleteTweet(id int) error
+}
+```
+
+To generate mocked methods of this interface, we just have to run `mockery --name=InterfaceName --recursive=true`.
+For example, `mockery --name=TweetUsecase --recursive=true`
+
+```go
+// file_test.go
+type tweetUsecaseSuite struct {
+  suite.Suite
+  repository *mocks.TweetRepository
+  usecase TweetUsecase
+  cleanupExecutor utils.TruncateTableExecutor
+}
+
+func (suite *tweetUsecaseSuite) SetupTest() {
+  repository := new(mocks.TweetRepository)
+  usecase := InitializeTweetUsecase(repository)
+  
+  
+  suite.repository = repository
+  suite.usecase = usecase
+}
+
+func (suite *tweetUsecaseSuite) TestCreateTweet_Positive() {
+  tweet := entities.Tweet{
+    Username: "username",
+    Text: "text",
+  }
+  
+  suite.repository.On("CreateTweet", &tweet).Return(nil)
+  
+  err := suite.usecase.CreateTweet(&tweet)
+  suite.Nil(err, "err is a nil pointer so no error in this process")
+  suite.repository.AssertExpectations(suite.T())
+}
+
+func TestTweetUsecase(t *testing.T) {
+  suite.Run(t, new(tweetUsecaseSuite))
+}
+```
+
 
 ## References:
 ### 1. Coding standards
@@ -339,3 +484,14 @@ If we think error types or sentinel errors are better, then go for it by keep fo
 ### 4. Error Handling
   - https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully
   - https://www.youtube.com/watch?v=lsBF58Q-DnY
+  - https://blog.golang.org/error-handling-and-go
+### 5. Testing
+  - https://github.com/stretchr/testify
+  - https://github.com/vektra/mockery
+  - https://tutorialedge.net/golang/improving-your-tests-with-testify-go/
+  - https://www.guru99.com/unit-test-vs-integration-test.html#:~:text=Unit%20Testing%20test%20each%20part,see%20they%20are%20working%20fine.&text=Unit%20Testing%20is%20executed%20by,performed%20by%20the%20testing%20team.
+  - https://codeburst.io/unit-testing-for-rest-apis-in-go-86c70dada52d
+  - https://medium.com/@benbjohnson/structuring-tests-in-go-46ddee7a25c
+  - https://www.youtube.com/watch?v=_NKQX-TdNMc
+  - https://netmind.net/en/positive-vs-negative-test-cases/#:~:text=Positive%20test%20cases%20ensure%20that,or%20by%20using%20invalid%20data.
+  - https://github.com/agusrichard/go-workbook/tree/master/restapi-test-app
