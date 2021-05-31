@@ -509,7 +509,7 @@ func TestTweetUsecase(t *testing.T) {
 
 ## Additional Guidelines
 ### 1. Use pointer when passing around struct between functions. </br>
-By doing this, we can't check nullity of a struct easily. We don't have to compare it to empty struct of some type.
+By doing this, we can check nullity of a struct easily. We don't have to compare it to empty struct of some type.
 What we have to do is to check whether it returns pointer or nil.
 ```go
 func someFunction(inp *input) *output {...}

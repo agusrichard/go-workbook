@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/suite"
 	"restapi-tested-app/config"
 	"restapi-tested-app/entities"
@@ -14,7 +15,8 @@ type tweetRepositorySuite struct {
 	cleanupExecutor utils.TruncateTableExecutor
 }
 
-func (suite *tweetRepositorySuite) SetupTest() {
+func (suite *tweetRepositorySuite) SetupSuite() {
+	fmt.Println("SetupSuite")
 	configs := config.GetConfig()
 	db := config.ConnectDB(configs)
 	repository := InitializeTweetRepository(db)
@@ -25,6 +27,7 @@ func (suite *tweetRepositorySuite) SetupTest() {
 }
 
 func (suite *tweetRepositorySuite) TearDownTest() {
+	fmt.Println("TearDownTest")
 	defer suite.cleanupExecutor.TruncateTable([]string{"tweets"})
 }
 
