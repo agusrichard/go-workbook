@@ -6,7 +6,7 @@ Coding standards are a series of procedures for a particular programming languag
 A coding standard makes sure that all the developers working on the project are following certain specified guidelines. The code can be easily understood and proper consistency is maintained.
 > **The finished program code should look like that it has been written by a single developer, in a single session.**
 
-### In general, best practices of better code: (**IMPORTANT!**)
+### In general, best practices of better code:
 - Code comments and proper documentation </br>
   It is advisable to start every method or routine with the comment specifying what a routine, method or a function does, about its various parameters, its return values, errors and exceptions (if any).
 - Use indentation </br>
@@ -45,7 +45,7 @@ This project structure pattern is suitable for medium to large applications with
 
 We divide each package into its own functionalities, e.g. `package handlers` is responsible for HTTP handler for all endpoints.
 
-### How to implement the Structure: (**IMPORTANT!**)
+### How to implement the Structure:
 
 The list of packages (which means they have their own folders)
 - handlers </br>
@@ -71,8 +71,50 @@ The list of packages (which means they have their own folders)
 If we need new packages to comprehend the growing complexity of our codebase, then feel free to add new one.
 This structure should make our life easy, not giving us another headaches.
 
-This is how our project structure would look like: </br>
-![img_2.png](images/img_1.png)
+This is how our project structure would look like (example): </br>
+```go
+.
+├── config
+│   ├── config.go
+│   └── db.go
+├── docker-compose.yaml
+├── Dockerfile
+├── entities
+│   ├── config.entities.go
+│   ├── response.entities.go
+│   └── tweet.entities.go
+├── go.mod
+├── go.sum
+├── handlers
+│   ├── tweet_handler.go
+│   └── tweet_handler_mocked_test.go
+├── main.go
+├── mocks
+│   ├── TweetRepository.go
+│   └── TweetUsecase.go
+├── postgres.Dockerfile
+├── README.md
+├── repositories
+│   ├── tweet_repository.go
+│   └── tweet_repository_test.go
+├── sample.env
+├── server
+│   ├── handlers.go
+│   ├── repositories.go
+│   ├── setup.go
+│   └── usecases.go
+├── sql
+│   └── tweet.sql
+├── tmp
+│   ├── air.log
+│   └── main
+├── usecases
+│   ├── tweet_usecase.go
+│   └── tweet_usecase_test.go
+└── utils
+├── server_http.go
+└── truncate_table.go
+```
 
 ## Naming Conventions
 
@@ -465,6 +507,100 @@ func TestTweetUsecase(t *testing.T) {
 }
 ```
 
+## Additional Guidelines
+### 1. Use pointer when passing around struct between functions. </br>
+By doing this, we can't check nullity of a struct easily. We don't have to compare it to empty struct of some type.
+What we have to do is to check whether it returns pointer or nil.
+```go
+func someFunction(inp *input) *output {...}
+
+func otherFunction() {
+  result := someFunction()
+  
+  // No need for doing this, since result is a pointer 
+  if result == output{} {...} // Note that this will result in error type checking
+
+  // We can't access properties of a nil pointer
+  if result == nil {...} 
+  
+  // we can access the properties of a struct here
+  if result != nil {...}
+}
+```
+### 2. Always check nullity if some function returns pointer.
+If we directly assume some structs have some properties, then directly access them.
+```go
+type output struct {
+  prop1 int
+  prop2 string
+}
+
+func someFunction(inp *input) *output {
+  return nil
+}
+
+func otherFunction() {
+  result := someFunction()
+  
+  // this will result in error nil pointer dereference, because we try to access nil pointer
+  fmt.Println(result.prop1)
+  
+  // therefore we have to check for the nullity first
+  if result == nil {
+    // can't access the result's properties here	
+  } else { 
+    // we can access the result's properties here
+  }
+  
+  // 
+}
+```
+### 3. Use defer as soon as something needs to be done when the function stack returns.
+
+```go
+func AmazingFunction() {
+  result, err := SomeFunction()
+  if err != nil {
+    // error handling
+  }
+  defer result.Close()  // in this example, the function call returns, we close the result (it could be connection, file or any object which has method Close()
+  
+  // ... do something
+}
+```
+
+Three rules for defer statement:
+1. A deferred function's arguments are evaluated when the defer statement is evaluated.
+```go
+func a() {
+    i := 0
+    defer fmt.Println(i)
+    i++
+    return
+}
+```
+
+This returns 0 instead of 1. Because defer is evaluated right away, but is called later on when the function returns.
+
+2. Deferred function calls are executed in Last In First Out order after the surrounding function returns.
+```go
+func b() {
+    for i := 0; i < 4; i++ {
+        defer fmt.Print(i)
+    }
+}
+```
+
+This prints "3210"
+
+3. Deferred functions may read and assign to the returning function's named return values.
+```go
+func c() (i int) {
+    defer func() { i++ }()
+    return 1
+}
+```
+
 
 ## References:
 ### 1. Coding standards
@@ -480,7 +616,7 @@ func TestTweetUsecase(t *testing.T) {
   - https://medium.com/@kdnotes/golang-naming-rules-and-conventions-8efeecd23b68
   - https://blog.golang.org/package-names
   - https://rakyll.org/style-packages/
-  - https://logansbailey.com/plural-vs-singular-directory-names#:~:text=Directory%20names%20should%20be%20singular,and%20performing%20actions%20on%20them.
+  - https://logansbailey.com/plural-vs-singular-directory-names#:~:text=Directory%20names%20should%20be%20singular,and%20performing%20actions%20on%20them
 ### 4. Error Handling
   - https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully
   - https://www.youtube.com/watch?v=lsBF58Q-DnY
@@ -493,5 +629,9 @@ func TestTweetUsecase(t *testing.T) {
   - https://codeburst.io/unit-testing-for-rest-apis-in-go-86c70dada52d
   - https://medium.com/@benbjohnson/structuring-tests-in-go-46ddee7a25c
   - https://www.youtube.com/watch?v=_NKQX-TdNMc
-  - https://netmind.net/en/positive-vs-negative-test-cases/#:~:text=Positive%20test%20cases%20ensure%20that,or%20by%20using%20invalid%20data.
+  - https://netmind.net/en/positive-vs-negative-test-cases/#:~:text=Positive%20test%20cases%20ensure%20that,or%20by%20using%20invalid%20data
   - https://github.com/agusrichard/go-workbook/tree/master/restapi-test-app
+### 6. Idiomatic Go
+  - https://www.youtube.com/watch?v=yeetIgNeIkc
+  - https://blog.golang.org/defer-panic-and-recover#:~:text=A%20defer%20statement%20pushes%20a,perform%20various%20clean%2Dup%20actions
+  - https://dave.cheney.net/2020/02/23/the-zen-of-go
