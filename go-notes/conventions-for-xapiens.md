@@ -547,12 +547,11 @@ func otherFunction() {
   
   // therefore we have to check for the nullity first
   if result == nil {
-    // can't access the result's properties here	
+    // can't access the result's properties here
+  	// do something such as error handling or just returns to the caller
   } else { 
     // we can access the result's properties here
   }
-  
-  // 
 }
 ```
 ### 3. Use defer as soon as something needs to be done when the function stack returns.
@@ -601,6 +600,49 @@ func c() (i int) {
 }
 ```
 
+### 4. Have a good line of sight
+
+Line of sight is a term coined by Mat Ryer, which means we have to keep our logic on the same line.
+Example:
+```go
+func AmazingFunction() {
+  one, err := someFunction()
+  if err != nil {
+    // error handling or return immediatelly  	
+  }
+  
+  two := otherFunction()
+  if !two.IsValid() { 
+    // what we have to do when two is not valid 
+  }
+  
+  ...
+}
+```
+
+The good practice is reverse the logic when error handling. Start from bad case to good case.
+```go
+func AmazingFunction() {
+
+  // BAD
+  result := someFunction()
+  if result.IsValid() {...}
+  else {...}
+  
+  // GOOD
+  result := someFunction()
+  if !result.IsValid() {
+    // some validation or error handling   
+  }
+  
+  // do something
+}
+```
+
+### 5. Implement Single Responsibility Principle
+By having a small block of code which focus on doing one something, we make our life easier.
+Small block of code is easy to read and to manage. Even if we need to change it later, it would be easier.
+
 
 ## References:
 ### 1. Coding standards
@@ -635,3 +677,5 @@ func c() (i int) {
   - https://www.youtube.com/watch?v=yeetIgNeIkc
   - https://blog.golang.org/defer-panic-and-recover#:~:text=A%20defer%20statement%20pushes%20a,perform%20various%20clean%2Dup%20actions
   - https://dave.cheney.net/2020/02/23/the-zen-of-go
+### 7. SOLID Go
+  - https://dave.cheney.net/2016/08/20/solid-go-design
