@@ -2,18 +2,21 @@ package server
 
 import (
 	"db-experiment/config"
+	model "db-experiment/models"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
-func registerRoutes(router *gin.Engine, hndlrs *handlers) {
+func registerRoutes(router *gin.Engine, h *handlers) {
 	router.GET("/", func(ctx *gin.Context) {
-		ctx.JSON(http.StatusOK, gin.H{
-			"message": "here",
-			"success": true,
+		ctx.JSON(http.StatusOK, model.Response{
+			Success: true,
+			Message: "Hello World!",
 		})
 	})
+
+	router.POST("/todos", h.todoHandler.CreateTodo())
 }
 
 func SetupServer() *gin.Engine {
