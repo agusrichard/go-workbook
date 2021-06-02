@@ -180,7 +180,6 @@ func (nt *NullTime) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON for NullTime
 func (nt *NullTime) UnmarshalJSON(b []byte) error {
 	s := string(b)
-	// s = Stripchars(s, "\"")
 
 	x, err := time.Parse(time.RFC3339, s)
 	if err != nil {

@@ -45,8 +45,8 @@ func (r *todoRepository) CreateTodo(todo *model.Todo) error {
 func insertTodo(tx *sqlx.Tx, todo *model.Todo) error {
 	_, err := tx.NamedExec(`
 		INSERT INTO todos(username, title, description)
-		VALUES (:username, :title, :description)
-;	`, todo)
+		VALUES (:username, :title, :description);
+;	`, todo.ToConcrete())
 
 	return err
 }
