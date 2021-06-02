@@ -5,91 +5,98 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"time"
 )
 
-type UserBase struct {
-	Username string `json:"username" db:"username"`
-}
-
-type User struct {
-	UserBase
-	Fullname sql.NullString `json:"fullname" db:"fullname"`
-}
-
-type user struct {
-	UserBase
-	Fullname string `json:"username" db:"username"`
-}
-
 type TodoBase struct {
-	ID    int    `json:"id" db:"id"`
-	User  User   `json:"user" db:"user"`
-	Title string `json:"title" db:"title"`
+	ID        int       `json:"id" db:"id"`
+	Username  string    `json:"username" db:"username"`
+	Title     string    `json:"title" db:"title"`
+	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 }
 
 type Todo struct {
 	TodoBase
 	Description sql.NullString `json:"description" db:"description"`
+	ModifiedAt  sql.NullTime   `json:"modifiedAt" db:"modified_at"`
 }
 
-type todo struct {
+type TodoConcrete struct {
 	TodoBase
-	Description string `json:"description" db:"description"`
+	Description string    `json:"description" db:"description"`
+	ModifiedAt  time.Time `json:"modifiedAt" db:"modified_at"`
 }
 
-func (t *Todo) ToConcrete() todo {
-	return ToConcrete(t, &todo{}).(todo)
+func (t *Todo) IsValid() bool {
+	return t.Username != "" || t.Title != ""
 }
 
-func ToConcrete(abstractValue interface{}, concreteType interface{}) interface{} {
-	todoValue := reflect.ValueOf(abstractValue).Elem()
-	concreteValue := reflect.ValueOf(concreteType)
+func (t *Todo) ToConcrete() TodoConcrete {
+	return ToConcrete(t, TodoConcrete{}, TodoBase{}).(TodoConcrete)
+}
 
-	numOfFields := concreteValue.Elem().NumField()
+func ToConcrete(abstractPointer interface{}, emptyConcretePointer interface{}, baseStruct interface{}) interface{} {
+	tVal := reflect.ValueOf(abstractPointer).Elem()
+	cVal := reflect.New(reflect.TypeOf(emptyConcretePointer))
+
+	numOfFields := cVal.Elem().NumField()
 	for i := 0; i < numOfFields; i++ {
-		if todoValue.Field(i).Type() == reflect.TypeOf(TodoBase{}) {
-			concreteValue.Elem().Field(i).Set(todoValue.Field(i))
+		if tVal.Field(i).Type() == reflect.TypeOf(baseStruct) {
+			cVal.Elem().Field(i).Set(tVal.Field(i))
 			continue
 		}
 
-		if todoValue.Field(i).Type() == reflect.TypeOf(sql.NullString{}) {
-			concreteValue.Elem().Field(i).SetString(todoValue.Field(i).Interface().(sql.NullString).String)
+		if tVal.Field(i).Type() == reflect.TypeOf(sql.NullString{}) {
+			cVal.Elem().Field(i).SetString(tVal.Field(i).Interface().(sql.NullString).String)
 			continue
 		}
 
-		//if todoValue.Field(i).Kind() == reflect.Struct {
-		//
-		//}
+		if tVal.Field(i).Type() == reflect.TypeOf(sql.NullBool{}) {
+			cVal.Elem().Field(i).SetBool(tVal.Field(i).Interface().(sql.NullBool).Bool)
+			continue
+		}
+
+		if tVal.Field(i).Type() == reflect.TypeOf(sql.NullFloat64{}) {
+			cVal.Elem().Field(i).SetFloat(tVal.Field(i).Interface().(sql.NullFloat64).Float64)
+			continue
+		}
+
+		if tVal.Field(i).Type() == reflect.TypeOf(sql.NullInt64{}) {
+			cVal.Elem().Field(i).SetInt(tVal.Field(i).Interface().(sql.NullInt64).Int64)
+			continue
+		}
+
+		if tVal.Field(i).Type() == reflect.TypeOf(sql.NullTime{}) {
+			cVal.Elem().Field(i).Set(reflect.ValueOf(tVal.Field(i).Interface().(sql.NullTime).Time))
+			continue
+		}
 	}
 
-	return concreteValue.Elem().Interface()
+	return cVal.Elem().Interface()
 }
 
 func main() {
 	todo := Todo{
 		TodoBase: TodoBase{
 			ID:       1,
-			User: User{
-				UserBase: UserBase{
-					Username: "sekardayu",
-				},
-				Fullname: sql.NullString{
-					String: "Sekardayu Hana Pradiani",
-					Valid: true,
-				},
-			},
+			Username: "sekardayu",
 			Title:    "title",
+			CreatedAt: time.Now(),
 		},
 		Description: sql.NullString{
 			String: "description",
 			Valid:  true,
 		},
+		ModifiedAt: sql.NullTime{
+			Time: time.Now(),
+			Valid: true,
+		},
 	}
 	fmt.Println(todo)
-	newTodo := todo.ToConcrete()
-	fmt.Println(newTodo)
+	cTodo := todo.ToConcrete()
+	fmt.Println(cTodo)
 
-	result, err := json.Marshal(newTodo)
+	result, err := json.Marshal(cTodo)
 	if err != nil {
 		panic(err)
 	}
