@@ -16,7 +16,14 @@ func registerRoutes(router *gin.Engine, h *handlers) {
 		})
 	})
 
-	router.POST("/todos", h.todoHandler.CreateTodo())
+	todoRoutes := router.Group("/todos")
+	{
+		todoRoutes.POST("", h.todoHandler.CreateTodo())
+		todoRoutes.GET("", h.todoHandler.GetAllTodos())
+		todoRoutes.GET("/:id", h.todoHandler.GetTodoByID())
+		todoRoutes.PUT("", h.todoHandler.UpdateTodo())
+		todoRoutes.DELETE("/:id", h.todoHandler.DeleteTodo())
+	}
 }
 
 func SetupServer() *gin.Engine {
