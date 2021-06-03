@@ -3,6 +3,9 @@ package handler
 import (
 	model "db-experiment/models"
 	usecase "db-experiment/usecases"
+	"db-experiment/util"
+	"encoding/json"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
@@ -16,6 +19,7 @@ type TodoHandler interface {
 	CreateTodo() gin.HandlerFunc
 	GetAllTodos() gin.HandlerFunc
 	GetTodoByID() gin.HandlerFunc
+	FilterTodos() gin.HandlerFunc
 	UpdateTodo() gin.HandlerFunc
 	DeleteTodo() gin.HandlerFunc
 }
@@ -91,6 +95,60 @@ func (h *todoHandler) GetTodoByID() gin.HandlerFunc {
 			Success: true,
 			Message: "Success to get todo by id",
 			Data: todo,
+		})
+	}
+}
+
+func (h *todoHandler) FilterTodos() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var query model.Query
+		var filters []model.Filter
+
+		err := ctx.ShouldBind(&query)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, model.Response{
+				Success: false,
+				Message: "failed to parse filter",
+			})
+			return
+		}
+
+		err = json.Unmarshal([]byte(query.FilterString), &filters)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, model.Response{
+				Success: false,
+				Message: "failed to parse filter",
+			})
+			return
+		}
+
+		fmt.Println("query", query)
+		fmt.Println("filter", filters)
+
+		additionalFilter := []model.Filter{
+			{
+				Type: "number",
+				Field: "id",
+				Value: "1",
+			},
+		}
+
+		result, err := util.CreateQueryFilter(&filters, &additionalFilter)
+		fmt.Println("query filter", result)
+
+		todos, err := h.todoUsecase.GetAllTodos()
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, model.Response{
+				Success: false,
+				Message: err.Error(),
+			})
+			return
+		}
+
+		ctx.JSON(http.StatusOK, model.Response{
+			Success: true,
+			Message: "Success to get all todos filtered",
+			Data: todos,
 		})
 	}
 }

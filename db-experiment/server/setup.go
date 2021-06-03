@@ -21,6 +21,7 @@ func registerRoutes(router *gin.Engine, h *handlers) {
 		todoRoutes.POST("", h.todoHandler.CreateTodo())
 		todoRoutes.GET("", h.todoHandler.GetAllTodos())
 		todoRoutes.GET("/:id", h.todoHandler.GetTodoByID())
+		todoRoutes.GET("/filter", h.todoHandler.FilterTodos())
 		todoRoutes.PUT("", h.todoHandler.UpdateTodo())
 		todoRoutes.DELETE("/:id", h.todoHandler.DeleteTodo())
 	}
