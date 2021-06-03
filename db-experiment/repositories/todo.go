@@ -2,6 +2,7 @@ package repository
 
 import (
 	model "db-experiment/models"
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -14,6 +15,7 @@ type TodoRepository interface {
 	CreateTodo(todo *model.Todo) error
 	GetAllTodos() (*[]model.Todo, error)
 	GetTodoByID(id int) (*model.Todo, error)
+	FilterTodos(filterQuery string, skip, take int) (*[]model.Todo, error)
 	UpdateTodo(todo *model.Todo) error
 	DeleteTodo(id int) error
 }
@@ -76,6 +78,27 @@ func (r *todoRepository) GetTodoByID(id int) (*model.Todo, error) {
 	}
 
 	return &todo, nil
+}
+
+func (r *todoRepository) FilterTodos(filterQuery string, skip, take int) (*[]model.Todo, error) {
+	var todos []model.Todo
+
+	query := fmt.Sprintf(`
+		SELECT id, username, title, description, created_at, modified_at
+		FROM todos
+		%s
+		OFFSET %d
+		LIMIT %d;
+	`, filterQuery, skip, take)
+
+	fmt.Println("query", query)
+
+	err := r.db.Select(&todos, query)
+	if err != nil {
+		return nil, errors.Wrap(err, "todo repository: get all todo: failed")
+	}
+
+	return &todos, nil
 }
 
 func (r *todoRepository) UpdateTodo(todo *model.Todo) error {

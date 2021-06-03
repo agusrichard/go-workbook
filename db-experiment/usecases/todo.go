@@ -14,6 +14,7 @@ type TodoUsecase interface {
 	CreateTodo(todo *model.Todo) error
 	GetAllTodos() (*[]model.Todo, error)
 	GetTodoByID(id int) (*model.Todo, error)
+	FilterTodos(filterQuery string, skip, take int) (*[]model.Todo, error)
 	UpdateTodo(todo *model.Todo) error
 	DeleteTodo(id int) error
 }
@@ -58,6 +59,15 @@ func (u *todoUsecase) GetTodoByID(id int) (*model.Todo, error) {
 	}
 
 	return todo, nil
+}
+
+func (u *todoUsecase) FilterTodos(filterQuery string, skip, take int) (*[]model.Todo, error) {
+	todos, err := u.todoRepository.FilterTodos(filterQuery, skip, take)
+	if err != nil {
+		return nil, errors.Wrap(err, "todo usecase: filter todos: error get data")
+	}
+
+	return todos, nil
 }
 
 func (u *todoUsecase) UpdateTodo(todo *model.Todo) error {

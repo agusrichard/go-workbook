@@ -122,21 +122,10 @@ func (h *todoHandler) FilterTodos() gin.HandlerFunc {
 			return
 		}
 
-		fmt.Println("query", query)
-		fmt.Println("filter", filters)
+		queryFilter, err := util.CreateQueryFilter(&filters, nil)
+		fmt.Println("query filter", queryFilter)
 
-		additionalFilter := []model.Filter{
-			{
-				Type: "number",
-				Field: "id",
-				Value: "1",
-			},
-		}
-
-		result, err := util.CreateQueryFilter(&filters, &additionalFilter)
-		fmt.Println("query filter", result)
-
-		todos, err := h.todoUsecase.GetAllTodos()
+		todos, err := h.todoUsecase.FilterTodos(queryFilter, query.Skip, query.Take)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, model.Response{
 				Success: false,

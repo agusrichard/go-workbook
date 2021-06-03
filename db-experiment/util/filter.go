@@ -9,8 +9,8 @@ import (
 )
 
 func CreateQueryFilter(filters *[]model.Filter, additionals *[]model.Filter) (string, error) {
-	var toBeIterated []model.Filter
 	var clauseList []string
+	var toBeIterated []model.Filter
 
 	if filters == nil {
 		return "", errors.New("create query filter: filter should not be nil")
@@ -22,21 +22,25 @@ func CreateQueryFilter(filters *[]model.Filter, additionals *[]model.Filter) (st
 		toBeIterated = append(*filters, *additionals...)
 	}
 
+	if len(toBeIterated) == 0 {
+		return "", nil
+	}
+
 	for _, v := range toBeIterated {
 		var clause string
 
 		switch v.Type {
 		case "text":
-			clause = "lower(" + v.Field + `) like lower('%` + v.Value + "%') "
+			clause = "lower(" + v.Field + `) like lower('%` + v.Value + "%')"
 		case "date":
 			fdMin, err := FilterDate(v.Value, "min")
 			if err != nil {
-				return "", errors.New("create query filter: error create filter date min")
+				return "", errors.Wrap(err, "create query filter: error create filter date min")
 			}
 
 			fdMax, err := FilterDate(v.Value, "max")
 			if err != nil {
-				return "", errors.New("create query filter: error create filter date max")
+				return "", errors.Wrap(err, "create query filter: error create filter date max")
 			}
 
 			clause = v.Field + `>='` + fdMin + "'" + " AND " + v.Field + `<'` + fdMax + "'"
@@ -47,7 +51,7 @@ func CreateQueryFilter(filters *[]model.Filter, additionals *[]model.Filter) (st
 		clauseList = append(clauseList, clause)
 	}
 
-	filterString := strings.Join(clauseList, " AND ")
+	filterString := "WHERE " + strings.Join(clauseList, " AND ")
 
 	return filterString, nil
 }
@@ -58,7 +62,7 @@ func FilterDate(date, types string) (string, error) {
 	timeStr := fmt.Sprintf(`%sT00:00:00.000Z`, date)
 	timeParse, err := time.Parse(time.RFC3339, timeStr)
 	if err != nil {
-		return "", errors.New("filter date: error parse string to time")
+		return "", errors.Wrap(err, "filter date: error parse string to time")
 	}
 
 	if types == "min" {
