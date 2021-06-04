@@ -5,6 +5,7 @@ import (
 	model "db-experiment/models"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
 	"net/http"
 )
 
@@ -52,4 +53,21 @@ func SetupServer() *gin.Engine {
 	registerRoutes(router, hndlrs)
 
 	return router
+}
+
+func SetupTestingServer() (*gin.Engine, *sqlx.DB) {
+	fmt.Println("Setting up testing server")
+
+	configs := config.GetConfig()
+	db := config.ConnectDB(configs)
+
+	repos := setupRepositories(db)
+	uscs := setupUsecases(repos)
+	hndlrs := setupHandlers(uscs)
+
+	router := gin.Default()
+
+	registerRoutes(router, hndlrs)
+
+	return router, db
 }

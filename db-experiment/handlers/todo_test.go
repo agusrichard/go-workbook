@@ -2,11 +2,10 @@ package handler
 
 import (
 	"db-experiment/config"
-	model "db-experiment/models"
-	"db-experiment/server"
+	repository "db-experiment/repositories"
+	usecase "db-experiment/usecases"
 	"db-experiment/util"
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	"net/http/httptest"
 	"testing"
 )
@@ -15,18 +14,26 @@ func useless(n int) int {
 	return n
 }
 
-var router *gin.Engine
-var testingServer *httptest.Server
-var configs *model.Config
-var db *sqlx.DB
-var cleanupExecutor util.TruncateTableExecutor
 
 func setup(b *testing.B) func(b *testing.B) {
-	var router = server.SetupServer()
-	var testingServer = httptest.NewServer(router)
-	var configs = config.GetConfig()
-	var db = config.ConnectDB(configs)
-	var cleanupExecutor = util.InitTruncateTableExecutor(db)
+	router := gin.Default()
+
+	configs := config.GetConfig()
+	db := config.ConnectDB(configs)
+
+	r := repository.InitializeTodoRepository(db)
+	u := usecase.InitializeTodoUsecase(r)
+	h := InitializeTodoHandler(u)
+
+	router.POST("", h.CreateTodo())
+	router.GET("", h.GetAllTodos())
+	router.GET("/:id", h.GetTodoByID())
+	router.GET("/filter", h.FilterTodos())
+	router.PUT("", h.UpdateTodo())
+	router.DELETE("/:id", h.DeleteTodo())
+
+	testingServer := httptest.NewServer(router)
+	cleanupExecutor := util.InitTruncateTableExecutor(db)
 
 	b.Log("Setup benchmarking")
 	return func(b *testing.B) {
