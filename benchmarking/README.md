@@ -70,6 +70,9 @@ There are some other things to observe in this benchmark run.
 
 - Each benchmark is run for a minimum of 1 second by default. If the second has not elapsed when the Benchmark function returns, the value of b.N is increased in the sequence 1, 2, 5, 10, 20, 50, … and the function run again.
 - The final BenchmarkFib40 only ran two times with the average was just under a second for each run. As the testing package uses a simple average (total time to run the benchmark function over b.N) this result is statistically weak. You can increase the minimum benchmark time using the -benchtime flag to produce a more accurate result.
+```shell
+go test -bench=Fib40 -benchtime=20s
+```
 
 ### Traps for young player
 
@@ -119,7 +122,7 @@ func BenchmarkFib3(b *testing.B)  { benchmarkFib(3, b) }
 func BenchmarkFib10(b *testing.B) { benchmarkFib(10, b) }
 func BenchmarkFib20(b *testing.B) { benchmarkFib(20, b) }
 func BenchmarkFib40(b *testing.B) { benchmarkFib(40, b) }
-
+~~~~
 var result int
 
 func BenchmarkFibComplete(b *testing.B) {

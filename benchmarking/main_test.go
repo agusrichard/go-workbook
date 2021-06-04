@@ -5,16 +5,19 @@ import (
 	"testing"
 )
 
-func setupTestCase(t *testing.T) func(t *testing.T) {
+var result *interface{}
+var i int
+
+func setupTestCase(t testing.TB) func(t testing.TB) {
 	t.Log("setup test case")
-	return func(t *testing.T) {
+	return func(t testing.TB) {
 		t.Log("teardown test case")
 	}
 }
 
-func setupSubTest(t *testing.T) func(t *testing.T) {
+func setupSubTest(t testing.TB) func(t testing.TB) {
 	t.Log("setup sub test")
-	return func(t *testing.T) {
+	return func(t testing.TB) {
 		t.Log("teardown sub test")
 	}
 }
@@ -48,7 +51,11 @@ func TestCalculate(t *testing.T) {
 }
 
 func BenchmarkCalculate(b *testing.B) {
+	i++
+	teardown := setupTestCase(b)
+	defer teardown(b)
 	for n := 0; n < b.N; n++ {
 		Calculate(1)
 	}
+	fmt.Println("i", i)
 }
