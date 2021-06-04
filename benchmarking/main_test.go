@@ -1,32 +1,48 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 )
 
-func benchmarkFib(i int, b *testing.B) {
-	for n := 0; n < b.N; n++ {
-		Fib(i)
+func setupTestCase(t *testing.T) func(t *testing.T) {
+	t.Log("setup test case")
+	return func(t *testing.T) {
+		t.Log("teardown test case")
 	}
 }
 
-func BenchmarkFib1(b *testing.B)  { benchmarkFib(1, b) }
-func BenchmarkFib2(b *testing.B)  { benchmarkFib(2, b) }
-func BenchmarkFib3(b *testing.B)  { benchmarkFib(3, b) }
-func BenchmarkFib10(b *testing.B) { benchmarkFib(10, b) }
-func BenchmarkFib20(b *testing.B) { benchmarkFib(20, b) }
-func BenchmarkFib40(b *testing.B) { benchmarkFib(40, b) }
-
-var result int
-
-func BenchmarkFibComplete(b *testing.B) {
-	var r int
-	for n := 0; n < b.N; n++ {
-		// always record the result of Fib to prevent
-		// the compiler eliminating the function call.
-		r = Fib(10)
+func setupSubTest(t *testing.T) func(t *testing.T) {
+	t.Log("setup sub test")
+	return func(t *testing.T) {
+		t.Log("teardown sub test")
 	}
-	// always store the result to a package level variable
-	// so the compiler cannot eliminate the Benchmark itself.
-	result = r
+}
+
+func TestCalculate(t *testing.T) {
+	cases := []struct {
+		n        int
+		expected int
+	}{
+		{ 1, 3},
+		{ 2, 4},
+		{ 3, 5},
+		{ 4, 6},
+		{ 5, 7},
+	}
+
+	teardownTestCase := setupTestCase(t)
+	defer teardownTestCase(t)
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("running test when n=%d", tc.n), func(t *testing.T) {
+			teardownSubTest := setupSubTest(t)
+			defer teardownSubTest(t)
+
+			actual := Calculate(tc.n)
+			if actual != tc.expected {
+				t.Fatalf("expect %v got %v", tc.expected, actual)
+			}
+		})
+	}
 }
