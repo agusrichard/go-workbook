@@ -46,3 +46,9 @@ func TestCalculate(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkCalculate(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		Calculate(1)
+	}
+}

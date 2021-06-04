@@ -279,6 +279,41 @@ func TestCalculate(t *testing.T) {
 
 ```
 
+## [Go: tests with HTML coverage report](https://kenanbek.medium.com/go-tests-with-html-coverage-report-f977da09552d)
+
+To add cover reports `go test -cover ./...`
+
+To get detail information of coverage
+```shell
+go test -coverprofile=coverage.out ./...  # save coverage results
+go tool cover -func=coverage.out          # print results
+go tool cover -html=coverage.out          # view coverage as html page
+```
+
+The coverage tool also includes three different coverage modes. You can select coverage mode by using -covermode option:
+
+```shell
+go test -covermode=count -coverprofile=coverage.out
+```
+
+Makefile for simplicity
+
+```makefile
+GO=go
+GOCOVER=$(GO) tool cover
+.PHONY: test/cover
+test/cover:
+    $(GOTEST) -v -coverprofile=coverage.out ./...
+    $(GOCOVER) -func=coverage.out
+    $(GOCOVER) -html=coverage.out
+```
+
+There are three different cover modes:
+- set: did each statement run?
+- count: how many times did each statement run?
+- atomic: like count, but counts precisely in parallel programs
+
+
 
 ## References:
 - https://tutorialedge.net/golang/benchmarking-your-go-programs/
@@ -286,3 +321,4 @@ func TestCalculate(t *testing.T) {
 - https://golang.org/pkg/testing/
 - https://riptutorial.com/go/example/15183/testing-using-setup-and-teardown-function
 - https://stackoverflow.com/questions/23729790/how-can-i-do-test-setup-using-the-testing-package-in-go
+- https://kenanbek.medium.com/go-tests-with-html-coverage-report-f977da09552d
