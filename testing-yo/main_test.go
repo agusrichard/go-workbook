@@ -81,19 +81,21 @@ func TestUsingUseless_One(t *testing.T) {
 }
 
 type MyIntMocked struct {
-	number int
-	Useless func(n int) int
+	UselessMocked func() int
 }
 
+func (m *MyIntMocked) Useless() int {
+	return m.UselessMocked()
+}
 
 func TestUsingUseless_Mocked(t *testing.T) {
-	m := MyIntMocked{number: 1}
-	m.Useless = func(n int) int {
-		return m.number
+	m := MyIntMocked{}
+	m.UselessMocked = func() int {
+		return 1
 	}
 
-	expected, input := 1, 1
-	actual := m.Useless(input)
+	expected := 1
+	actual := UsingUseless(&m)
 	if actual != expected {
 		t.Fatalf("expect %v got %v", expected, actual)
 	}

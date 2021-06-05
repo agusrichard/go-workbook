@@ -6,11 +6,15 @@ type MyInt struct {
 	number int
 }
 
+type MyIntI interface {
+	Useless() int
+}
+
 func (m *MyInt) Useless() int {
 	return m.number
 }
 
-func UsingUseless(m *MyInt) int {
+func UsingUseless(m MyIntI) int {
 	return m.Useless()
 }
 
