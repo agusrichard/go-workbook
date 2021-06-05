@@ -1,10 +1,11 @@
 package config
 
 import (
+	"db-experiment/models"
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	"db-experiment/models"
+	"log"
 )
 
 var DB *sqlx.DB
@@ -42,6 +43,6 @@ func getDBConnection(config *model.Config) *sqlx.DB {
 	db.SetMaxIdleConns(1)
 	db.SetMaxOpenConns(5)
 
-	fmt.Println("Connected to DB")
+	log.Println("Connected to DB")
 	return db
 }

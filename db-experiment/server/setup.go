@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	"io/ioutil"
 	"net/http"
 )
 
@@ -40,6 +41,10 @@ func registerRoutes(router *gin.Engine, h *handlers) {
 
 func SetupServer() *gin.Engine {
 	fmt.Println("Setting up server")
+	router := gin.New()
+
+	gin.SetMode(gin.ReleaseMode)
+	gin.DefaultWriter = ioutil.Discard
 
 	configs := config.GetConfig()
 	db := config.ConnectDB(configs)
@@ -47,8 +52,6 @@ func SetupServer() *gin.Engine {
 	repos := setupRepositories(db)
 	uscs := setupUsecases(repos)
 	hndlrs := setupHandlers(uscs)
-
-	router := gin.Default()
 
 	registerRoutes(router, hndlrs)
 

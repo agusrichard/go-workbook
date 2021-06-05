@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -17,18 +18,21 @@ import (
 
 var resultv1 *interface{}
 
-type testCase struct{
-	name string
-	request []byte
+type testCase struct {
+	name     string
+	request  []byte
 	expected struct {
 		statusCode int
-		response model.Response
+		response   model.Response
 	}
 }
 
-func setupTestTodoV1(b testing.TB) (func(b testing.TB), *httptest.Server) {
-	b.Log("Setup benchmarking")
-	router := gin.Default()
+func setupTestTodoV1(tb testing.TB) (func(tb testing.TB), *httptest.Server) {
+	tb.Log("Setup")
+	router := gin.New()
+
+	gin.SetMode(gin.ReleaseMode)
+	gin.DefaultWriter = ioutil.Discard
 
 	configs := config.GetConfig()
 	db := config.ConnectDB(configs)
@@ -47,8 +51,8 @@ func setupTestTodoV1(b testing.TB) (func(b testing.TB), *httptest.Server) {
 	testingServer := httptest.NewServer(router)
 	cleanupExecutor := util.InitTruncateTableExecutor(db)
 
-	return func(b testing.TB) {
-		b.Log("Teardown benchmarking")
+	return func(tb testing.TB) {
+		tb.Log("Teardown")
 		defer testingServer.Close()
 		defer cleanupExecutor.TruncateTable([]string{"todos"})
 	}, testingServer
@@ -61,10 +65,10 @@ func TestTodoHandler_CreateTodo(t *testing.T) {
 	var cases []testCase
 
 	var validInputPositiveCases []testCase
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		rb, err := json.Marshal(map[string]interface{}{
-			"username": fmt.Sprintf("username%d", i),
-			"title":    fmt.Sprintf("title%d", i),
+			"username":    fmt.Sprintf("username%d", i),
+			"title":       fmt.Sprintf("title%d", i),
 			"description": fmt.Sprintf("description%d", i),
 		})
 		if err != nil {
@@ -72,11 +76,11 @@ func TestTodoHandler_CreateTodo(t *testing.T) {
 		}
 
 		validInputPositiveCases = append(validInputPositiveCases, testCase{
-			name: fmt.Sprintf("validInputPositiveCases_%d", i),
+			name:    fmt.Sprintf("validInputPositiveCases_%d", i),
 			request: rb,
 			expected: struct {
 				statusCode int
-				response model.Response
+				response   model.Response
 			}{
 				statusCode: http.StatusOK,
 				response: model.Response{
@@ -88,7 +92,7 @@ func TestTodoHandler_CreateTodo(t *testing.T) {
 	}
 
 	var emptyDescriptionPositiveCases []testCase
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		rb, err := json.Marshal(map[string]interface{}{
 			"username": fmt.Sprintf("username%d", i),
 			"title":    fmt.Sprintf("title%d", i),
@@ -98,11 +102,11 @@ func TestTodoHandler_CreateTodo(t *testing.T) {
 		}
 
 		emptyDescriptionPositiveCases = append(emptyDescriptionPositiveCases, testCase{
-			name: fmt.Sprintf("emptyDescriptionPositiveCases_%d", i),
+			name:    fmt.Sprintf("emptyDescriptionPositiveCases_%d", i),
 			request: rb,
 			expected: struct {
 				statusCode int
-				response model.Response
+				response   model.Response
 			}{
 				statusCode: http.StatusOK,
 				response: model.Response{
@@ -114,18 +118,18 @@ func TestTodoHandler_CreateTodo(t *testing.T) {
 	}
 
 	var emptyAllFieldsNegativeCases []testCase
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		rb, err := json.Marshal(map[string]interface{}{})
 		if err != nil {
 			t.Fatal("there shouldn't be any error when marshalling request body")
 		}
 
 		emptyAllFieldsNegativeCases = append(emptyAllFieldsNegativeCases, testCase{
-			name: fmt.Sprintf("emptyAllFieldsNegativeCases_%d", i),
+			name:    fmt.Sprintf("emptyAllFieldsNegativeCases_%d", i),
 			request: rb,
 			expected: struct {
 				statusCode int
-				response model.Response
+				response   model.Response
 			}{
 				statusCode: http.StatusInternalServerError,
 				response: model.Response{
@@ -154,18 +158,18 @@ func TestTodoHandler_CreateTodo(t *testing.T) {
 }
 
 func BenchmarkTodoHandler_CreateTodo(b *testing.B) {
-	b.StopTimer () // call the function of the test time count stop pressure
+	b.StopTimer() // call the function of the test time count stop pressure
 
 	var r interface{}
 	teardown, testingServer := setupTestTodoV1(b)
 	defer teardown(b)
 
-	b.StartTimer () // re-start time
+	b.StartTimer() // re-start time
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		requestBody, err := json.Marshal(map[string]interface{}{
-			"username": fmt.Sprintf("username%d", i),
-			"title":    fmt.Sprintf("title%d", i),
+			"username":    fmt.Sprintf("username%d", i),
+			"title":       fmt.Sprintf("title%d", i),
 			"description": fmt.Sprintf("description%d", i),
 		})
 		if err != nil {
@@ -179,11 +183,87 @@ func BenchmarkTodoHandler_CreateTodo(b *testing.B) {
 	resultv1 = &r
 }
 
-func runCreateTodoV1(b testing.TB, testingServer *httptest.Server, requestBody []byte) (model.Response, int) {
+func runCreateTodoV1(tb testing.TB, testingServer *httptest.Server, requestBody []byte) (model.Response, int) {
 	response, err := http.Post(fmt.Sprintf("%s/v1/todos", testingServer.URL), "application/json", bytes.NewBuffer(requestBody))
 
 	if err != nil {
-		b.Fatal("error run create todo v1")
+		tb.Fatal("error run create todo v1")
+	}
+	defer response.Body.Close()
+	body := model.Response{}
+	json.NewDecoder(response.Body).Decode(&body)
+
+	return body, response.StatusCode
+}
+
+func TestTodoHandler_GetAllTodos(t *testing.T) {
+	teardown, testingServer := setupTestTodoV1(t)
+	defer teardown(t)
+
+	requestBody, err := json.Marshal(map[string]interface{}{
+		"username":    "username",
+		"title":       "title",
+		"description": "description",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Insert 10 data points in table todos
+	numOfRecords := 10
+	for i := 0; i < numOfRecords; i++ {
+		runCreateTodoV1(t, testingServer, requestBody)
+	}
+
+	response, statusCode := runGetAllTodosV1(t, testingServer)
+	if statusCode != http.StatusOK {
+		t.Fatalf("expect http status code 200 but got %d", statusCode)
+	}
+
+	if !response.Success {
+		t.Fatal("expect to success get all data, got failed")
+	}
+
+	if response.Message != "Success to get all todos" {
+		t.Fatalf("expect %v as message got %v", "Success to get all todos", response.Message)
+	}
+}
+
+func BenchmarkTodoHandler_GetAllTodos(b *testing.B) {
+	b.StopTimer() // call the function of the test time count stop pressure
+
+	var r interface{}
+	teardown, testingServer := setupTestTodoV1(b)
+	defer teardown(b)
+
+	requestBody, err := json.Marshal(map[string]interface{}{
+		"username":    "username",
+		"title":       "title",
+		"description": "description",
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	// Insert 10 data points in table todos
+	numOfRecords := 10
+	for i := 0; i < numOfRecords; i++ {
+		runCreateTodoV1(b, testingServer, requestBody)
+	}
+
+	b.StartTimer() // re-start time
+	for i := 0; i < b.N; i++ {
+		r, _ = runGetAllTodosV1(b, testingServer)
+	}
+
+	resultv1 = &r
+}
+
+func runGetAllTodosV1(tb testing.TB, testingServer *httptest.Server) (model.Response, int) {
+	response, err := http.Get(fmt.Sprintf("%s/v1/todos", testingServer.URL))
+
+	if err != nil {
+		tb.Fatal("error run get todos v1")
 	}
 	defer response.Body.Close()
 	body := model.Response{}
