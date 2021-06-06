@@ -202,7 +202,7 @@ func BenchmarkCalculate(b *testing.B) {
 }
 ```
 
-## [Another patterns of testing in Go](https://stackoverflow.com/questions/23729790/how-can-i-do-test-setup-using-the-testing-package-in-go)
+### [Another patterns of testing in Go](https://stackoverflow.com/questions/23729790/how-can-i-do-test-setup-using-the-testing-package-in-go)
 
 We can use this approach when we want to implement table driven tests
 
