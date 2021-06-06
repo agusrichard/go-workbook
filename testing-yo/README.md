@@ -216,7 +216,65 @@ func TestAddEventInMemorySucceed(t *testing.T) {
 ```
 
 ## [How to mock? Go Way.](https://medium.com/@ankur_anand/how-to-mock-in-your-go-golang-tests-b9eee7d7c266)
+```go
+// main.go
+type notification struct {}
 
+type Notification interface {
+    SendPaymentNotification(amount int) string
+}
+
+func (n *notification) SendPaymentNotification(amount int) string {
+    return fmt.Sprintf("you have made the payment with an amount of %d", amount)
+}
+
+type payment struct {
+    notification Notification
+}
+
+type Payment interface {
+    MakePayment(amount int) bool
+}
+
+func (p *payment) MakePayment(amount int) bool {
+    fmt.Printf("make payment with an amount of %d\n", amount)
+    fmt.Println(p.notification.SendPaymentNotification(amount))
+    return true
+}
+
+func main() {
+    fmt.Println("Hello World")
+}
+```
+
+```go
+// main_test.go
+func TestNotification_SendPaymentNotification(t *testing.T) {
+var n Notification = &notification{}
+    actual := n.SendPaymentNotification(21)
+    expected := "you have made the payment with an amount of 21"
+    if actual != "you have made the payment with an amount of 21" {
+        t.Fatalf("expect `%v` but got `%v`", expected, actual)
+    }
+}
+
+type notificationMocked struct {}
+
+func (n *notificationMocked) SendPaymentNotification(amount int) string {
+    return fmt.Sprintf("you have made the mocked payment with an amount of %d", amount)
+}
+
+func TestPayment_MakePayment(t *testing.T) {
+    var n Notification = &notificationMocked{}
+    var p Payment = &payment{notification: n}
+    
+    actual := p.MakePayment(21)
+    expected := true
+    if actual != expected {
+        t.Fatalf("expect `%v` but got `%v`", expected, actual)
+    }
+}
+```
 
 ## References:
 - https://golang.org/pkg/testing/
