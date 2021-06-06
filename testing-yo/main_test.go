@@ -100,3 +100,28 @@ func TestUsingUseless_Mocked(t *testing.T) {
 		t.Fatalf("expect %v got %v", expected, actual)
 	}
 }
+
+func TestNotification_SendPaymentNotification(t *testing.T) {
+	var n Notification = &notification{}
+	actual := n.SendPaymentNotification(21)
+	expected := "you have made the payment with an amount of 21"
+	if actual != "you have made the payment with an amount of 21" {
+		t.Fatalf("expect `%v` but got `%v`", expected, actual)
+	}
+}
+
+type notificationMocked struct {}
+
+func (n *notificationMocked) SendPaymentNotification(amount int) string {
+	return fmt.Sprintf("you have made the mocked payment with an amount of %d", amount)
+}
+
+func TestPayment_MakePayment(t *testing.T) {
+	var n Notification = &notificationMocked{}
+	var p Payment = &payment{notification: n}
+	actual := p.MakePayment(21)
+	expected := true
+	if actual != expected {
+		t.Fatalf("expect `%v` but got `%v`", expected, actual)
+	}
+}
