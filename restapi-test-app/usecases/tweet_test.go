@@ -5,35 +5,44 @@ import (
 	"github.com/stretchr/testify/suite"
 	"restapi-tested-app/entities"
 	"restapi-tested-app/mocks"
-	"restapi-tested-app/utils"
 	"testing"
 )
 
 type tweetUsecaseSuite struct {
+	// we need this to use the suite functionalities from testify
 	suite.Suite
+	// the generated mocked version of our repository
 	repository *mocks.TweetRepository
+	// the functionalities we want to test
 	usecase TweetUsecase
-	cleanupExecutor utils.TruncateTableExecutor
 }
 
 func (suite *tweetUsecaseSuite) SetupTest() {
+	// instantiate the mocked version of repository
 	repository := new(mocks.TweetRepository)
+	// inject the repository to usecase, since usecase needs repository to work
 	usecase := InitializeTweetUsecase(repository)
 
-
+	// assign them as the suite properties
 	suite.repository = repository
 	suite.usecase = usecase
 }
 
 func (suite *tweetUsecaseSuite) TestCreateTweet_Positive() {
+	// create an example of tweet that will be used in usecase's CreateTweet method
 	tweet := entities.Tweet{
 		Username: "username",
 		Text: "text",
 	}
 
+	// specify that inside usecase's CreateTweet method
+	// repository's CreateTweet method will be called
 	suite.repository.On("CreateTweet", &tweet).Return(nil)
 
+	// the real operation we need to test
 	err := suite.usecase.CreateTweet(&tweet)
+
+	// assertions to make sure our operation does the right thing
 	suite.Nil(err, "err is a nil pointer so no error in this process")
 	suite.repository.AssertExpectations(suite.T())
 }

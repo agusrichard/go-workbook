@@ -1,7 +1,6 @@
 package repositories
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/suite"
 	"restapi-tested-app/config"
 	"restapi-tested-app/entities"
@@ -10,34 +9,43 @@ import (
 )
 
 type tweetRepositorySuite struct {
+	// we need this to use the suite functionalities from testify
 	suite.Suite
+	// the funcionalities we need to test
 	repository TweetRepository
+	// some helper function to clean-up any used tables
 	cleanupExecutor utils.TruncateTableExecutor
 }
 
 func (suite *tweetRepositorySuite) SetupSuite() {
-	fmt.Println("SetupSuite")
+	// this function runs once before all tests in the suite
+
+	// some initialization setup
 	configs := config.GetConfig()
 	db := config.ConnectDB(configs)
 	repository := InitializeTweetRepository(db)
 
+	// assign the dependencies we need as the suite properties
+	// we need this to run the tests
 	suite.repository = repository
-
 	suite.cleanupExecutor = utils.InitTruncateTableExecutor(db)
 }
 
 func (suite *tweetRepositorySuite) TearDownTest() {
-	fmt.Println("TearDownTest")
+	// clean-up the used table to be used for another session
 	defer suite.cleanupExecutor.TruncateTable([]string{"tweets"})
 }
 
 func (suite *tweetRepositorySuite) TestCreateTweet_Positive() {
+	// instantiate an entity to be used by the function we want to test
 	tweet := entities.Tweet{
 		Username: "username",
 		Text: "text",
 	}
 
+	// real function we need to test
 	err := suite.repository.CreateTweet(&tweet)
+	// assertion for the result of our test
 	suite.NoError(err, "no error when create tweet with valid input")
 }
 
@@ -75,7 +83,7 @@ func (suite *tweetRepositorySuite) TestGetAllTweets_FilledRecords_Positive() {
 
 	tweets, err := suite.repository.GetAllTweets()
 	suite.NoError(err, "no error when get all tweets when the table is empty")
-	suite.Equal(len(*tweets), 3, "insert 3 records before the all data, so it should contain three tweets")
+	suite.Equal(len(*tweets), 3, "insert 3 records before get all data, so it should contain three tweets")
 }
 
 func (suite *tweetRepositorySuite) TestGetTweetByID_NotFound_Negative() {
