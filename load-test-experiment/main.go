@@ -1,37 +1,42 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"load-test-experiment/config"
+	"load-test-experiment/handler"
 	"net/http"
 	"time"
 )
 
 func main() {
-	r := gin.Default()
+	fmt.Println("LOAD TEST EXPERIMENT")
 
-	r.GET("/light", func(ctx *gin.Context) {
-		ctx.JSON(http.StatusOK, gin.H{
-			"message": "Light operations",
-		})
-	})
+	// Setup config and database
+	configModel := config.GetConfig()
+	config.ConnectDB(configModel)
 
-	r.GET("/medium", func(ctx *gin.Context) {
-		time.Sleep(2 * time.Second)
-		ctx.JSON(http.StatusOK, gin.H{
-			"message": "Medium operations",
-		})
-	})
+	// Register handlers Version One
+	liOneHn := handler.NewLightV1Handler()
+	mdOneHn := handler.NewMediumV1Handler()
+	hvOneHn := handler.NewHeavyV1Handler()
 
-	r.GET("/heavy", func(ctx *gin.Context) {
-		time.Sleep(5 * time.Second)
-		ctx.JSON(http.StatusOK, gin.H{
-			"message": "Heavy operations",
-		})
-	})
+	// Setup gin server
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.Default()
 
+	// Register routes
+	v1 := router.Group("/v1")
+	{
+		v1.POST("/light", liOneHn.Handle())
+		v1.POST("/medium", mdOneHn.Handle())
+		v1.POST("/heavy", hvOneHn.Handle())
+	}
+
+	// Initialize server config and run the server
 	s := &http.Server{
 		Addr:           ":9000",
-		Handler:        r,
+		Handler:        router,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,

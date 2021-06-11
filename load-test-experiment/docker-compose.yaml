@@ -1,0 +1,39 @@
+version: "3.8"
+services:
+  app:
+    build:
+      args:
+        - USER_ID=1000
+        - GROUP_ID=1000
+        - USERNAME=arichard
+      context: .
+      dockerfile: Dockerfile
+    container_name: load_test_experiment_app
+    env_file:
+      - ".env"
+    ports:
+      - "9000:9000"
+    depends_on:
+      - db
+    volumes:
+      - ./:/app
+    links:
+      - db
+  db:
+    build:
+      context: .
+      dockerfile: postgres.Dockerfile
+    ports:
+      - "5432:5432"
+    container_name: load_test_experiment_db
+    env_file:
+      - ".env"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${DB}
+    volumes:
+      - load-test-experiment-db-volume:/var/lib/postgresql/data
+volumes:
+  load-test-experiment-db-volume:
+    driver: local
