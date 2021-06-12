@@ -33,7 +33,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${DB}
     volumes:
-      - load-test-experiment-db-volume:/var/lib/postgresql/data
+      - db-volume:/var/lib/postgresql/data
 volumes:
-  load-test-experiment-db-volume:
+  db-volume:
     driver: local

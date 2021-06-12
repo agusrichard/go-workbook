@@ -1,4 +1,4 @@
 package actions
 
-const GET_ALL = "GET_ALL"
+const GET = "GET"
 const CREATE = "CREATE"

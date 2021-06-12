@@ -5,8 +5,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"load-test-experiment/config"
 	"load-test-experiment/handler"
-	"net/http"
-	"time"
+	"load-test-experiment/repository"
+	"load-test-experiment/usecase"
 )
 
 func main() {
@@ -14,10 +14,16 @@ func main() {
 
 	// Setup config and database
 	configModel := config.GetConfig()
-	config.ConnectDB(configModel)
+	db := config.ConnectDB(configModel)
 
-	// Register handlers Version One
-	liOneHn := handler.NewLightV1Handler()
+	// Register repositories version one
+	liOneRp := repository.NewV1Repository(db)
+
+	// Register repositories version one
+	liOneUc := usecase.NewLightV1Usecase(liOneRp)
+
+	// Register handlers version One
+	liOneHn := handler.NewLightV1Handler(liOneUc)
 	mdOneHn := handler.NewMediumV1Handler()
 	hvOneHn := handler.NewHeavyV1Handler()
 
@@ -34,12 +40,5 @@ func main() {
 	}
 
 	// Initialize server config and run the server
-	s := &http.Server{
-		Addr:           ":9000",
-		Handler:        router,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
-		MaxHeaderBytes: 1 << 20,
-	}
-	s.ListenAndServe()
+	router.Run(":9000")
 }
