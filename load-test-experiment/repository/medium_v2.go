@@ -31,7 +31,7 @@ func (r *mediumV2Repository) Create(m *model.MediumV2Model) error {
 		return errors.Wrap(err, "MediumV2Repository: Create: failed to initiate transaction;")
 	}
 
-	key, err := insertMediumLarge(tx, m)
+	key, err := insertV2MediumLarge(tx, m)
 	if err != nil {
 		tx.Rollback()
 		return errors.Wrap(err, "MediumV2Repository: Create: failed to insert medium large;")
@@ -39,7 +39,7 @@ func (r *mediumV2Repository) Create(m *model.MediumV2Model) error {
 
 	for _, val := range m.MediumSmallModelList {
 		val.SmallLargeKey = key
-		err = insertMediumSmall(tx, &val)
+		err = insertV2MediumSmall(tx, &val)
 		if err != nil {
 			tx.Rollback()
 			return errors.Wrap(err, "MediumV2Repository: Create: failed to insert m in repository;")
@@ -51,7 +51,7 @@ func (r *mediumV2Repository) Create(m *model.MediumV2Model) error {
 	return nil
 }
 
-func insertMediumSmall(tx *sqlx.Tx, m *model.MediumV2SmallModel) error {
+func insertV2MediumSmall(tx *sqlx.Tx, m *model.MediumV2SmallModel) error {
 	_, err := tx.NamedExec(`
 		INSERT INTO medium_small_table(field_one, field_two, field_three, field_four, small_large_key)
 		VALUES (:field_one, :field_two, :field_three, :field_four, :small_large_key);
@@ -60,7 +60,7 @@ func insertMediumSmall(tx *sqlx.Tx, m *model.MediumV2SmallModel) error {
 	return err
 }
 
-func insertMediumLarge(tx *sqlx.Tx, m *model.MediumV2Model) (int, error) {
+func insertV2MediumLarge(tx *sqlx.Tx, m *model.MediumV2Model) (int, error) {
 	var key int
 
 	err := tx.QueryRowx(`

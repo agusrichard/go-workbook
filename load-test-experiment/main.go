@@ -18,12 +18,15 @@ func main() {
 
 	// Register repositories version one
 	liOneRp := repository.NewLightV1Repository(db)
+	mdOneRp := repository.NewMediumV1Repository(db)
 
 	// Register repositories version one
 	liOneUc := usecase.NewLightV1Usecase(liOneRp)
+	mdOneUc := usecase.NewMediumV1Usecase(mdOneRp)
 
 	// Register handlers version one
 	liOneHn := handler.NewLightV1Handler(liOneUc)
+	mdOneHn := handler.NewMediumV1Handler(mdOneUc)
 
 
 	// Register repositories version two
@@ -48,6 +51,8 @@ func main() {
 	{
 		v1.POST("/light/create", liOneHn.Create())
 		v1.POST("/light/get", liOneHn.Get())
+		v1.POST("/medium/create", mdOneHn.Create())
+		v1.POST("/medium/get", mdOneHn.Get())
 	}
 
 	v2 := router.Group("/v2")

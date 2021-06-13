@@ -75,7 +75,7 @@ func (h *mediumV2Handler) get(ctx *gin.Context, r model.MediumV2Request) {
 	filterQuery, err := util.CreateQueryFilter(&r.Query.Filters, nil)
 	if err != nil {
 		log.Println(err)
-		ctx.JSON(http.StatusBadRequest, model.MediumV2Response{
+		ctx.JSON(http.StatusBadRequest, model.Response{
 			Message: "Bad request bruh!",
 			Data: make([]model.MediumV2Model, 0),
 		})
@@ -84,7 +84,7 @@ func (h *mediumV2Handler) get(ctx *gin.Context, r model.MediumV2Request) {
 	result, err := h.mediumv1Usecase.Get(filterQuery, r.Query.Skip, r.Query.Take)
 	if err != nil {
 		log.Println(err)
-		ctx.JSON(http.StatusBadRequest, model.MediumV2Response{
+		ctx.JSON(http.StatusBadRequest, model.Response{
 			Message: "Bad request bruh!",
 			Data: make([]model.MediumV2Model, 0),
 		})
@@ -93,14 +93,14 @@ func (h *mediumV2Handler) get(ctx *gin.Context, r model.MediumV2Request) {
 
 	if len(*result) == 0 {
 		log.Println("len(*result) == 0")
-		ctx.JSON(http.StatusOK, model.MediumV2Response{
+		ctx.JSON(http.StatusOK, model.Response{
 			Message: "Success get data",
 			Data: make([]model.MediumV2Model, 0),
 		})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, model.MediumV2Response{
+	ctx.JSON(http.StatusOK, model.Response{
 		Message: "Success get data",
 		Data: *result,
 	})
