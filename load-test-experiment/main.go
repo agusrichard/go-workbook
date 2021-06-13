@@ -28,12 +28,15 @@ func main() {
 
 	// Register repositories version two
 	liTwoRp := repository.NewLightV2Repository(db)
+	mdTwoRp := repository.NewMediumV2Repository(db)
 
 	// Register repositories version two
 	liTwoUc := usecase.NewLightV2Usecase(liTwoRp)
+	mdTwoUc := usecase.NewMediumV2Usecase(mdTwoRp)
 
 	// Register handlers version two
 	liTwoHn := handler.NewLightV2Handler(liTwoUc)
+	mdTwoHn := handler.NewMediumV2Handler(mdTwoUc)
 
 
 	// Setup gin server
@@ -51,6 +54,8 @@ func main() {
 	{
 		v2.POST("/light/create", liTwoHn.Create())
 		v2.POST("/light/get", liTwoHn.Get())
+		v2.POST("/medium/create", mdTwoHn.Create())
+		v2.POST("/medium/get", mdTwoHn.Get())
 	}
 
 	// Initialize server config and run the server
