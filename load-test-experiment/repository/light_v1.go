@@ -17,7 +17,7 @@ type LightV1Repository interface {
 	Get(filterQuery string, skip, take int) (*[]model.LightV1Model, error)
 }
 
-func NewV1Repository(db *sqlx.DB) LightV1Repository {
+func NewLightV1Repository(db *sqlx.DB) LightV1Repository {
 	return &lightV1Repository{db}
 }
 
@@ -43,7 +43,6 @@ func (r *lightV1Repository) Create(m *model.LightV1Model) error {
 }
 
 func (r *lightV1Repository) insert(tx *sql.Tx, m *model.LightV1Model) error {
-	fmt.Printf("m :=> %+v\n", m)
 	_, err := tx.Exec(`
 		INSERT INTO light_table(field_one, field_two, field_three, field_four)
 		VALUES ($1, $2, $3, $4);
@@ -61,8 +60,6 @@ func (r *lightV1Repository) Get(filterQuery string, skip, take int) (*[]model.Li
 		OFFSET %d
 		LIMIT %d;
 		`, filterQuery, skip, take)
-
-	fmt.Println("query", query)
 
 	rows, err := r.db.Query(query)
 	if err != nil {
@@ -90,8 +87,6 @@ func (r *lightV1Repository) Get(filterQuery string, skip, take int) (*[]model.Li
 			FieldFour: fieldFour,
 		})
 	}
-
-	fmt.Println("ms", ms)
 
 	return &ms, nil
 }

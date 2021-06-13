@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -106,7 +107,8 @@ func (nt *NullTime) MarshalJSON() ([]byte, error) {
 func (nt *NullTime) UnmarshalJSON(b []byte) error {
 	s := string(b)
 
-	x, err := time.Parse(time.RFC3339, s)
+	fmt.Println("UnmarshalJSON", s)
+	x, err := ParseTime(s)
 	if err != nil {
 		nt.Valid = false
 		return err
@@ -115,4 +117,18 @@ func (nt *NullTime) UnmarshalJSON(b []byte) error {
 	nt.Time = x
 	nt.Valid = true
 	return nil
+}
+
+func ParseTime(strTime string) (time.Time, error) {
+	if strTime == "" {
+		return time.Time{}, nil
+	}
+
+	strTime = strings.Replace(strTime, "\"", "", 2)
+
+	t, err := time.Parse(time.RFC3339, strTime)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return t, nil
 }

@@ -5,30 +5,28 @@ import (
 	"load-test-experiment/model"
 	"load-test-experiment/usecase"
 	util "load-test-experiment/utils"
-	"load-test-experiment/utils/actions"
 	"log"
 	"net/http"
-	"strings"
 )
 
-type lightV1Handler struct {
-	lightv1Usecase usecase.LightV1Usecase
+type lightV2Handler struct {
+	lightv1Usecase usecase.LightV2Usecase
 }
 
-type LightV1Handler interface{
-	Handle() gin.HandlerFunc
+type LightV2Handler interface{
 	Create() gin.HandlerFunc
 	Get() gin.HandlerFunc
 }
 
-func NewLightV1Handler(lightv1Usecase usecase.LightV1Usecase) LightV1Handler {
-	return &lightV1Handler{lightv1Usecase}
+func NewLightV2Handler(lightv1Usecase usecase.LightV2Usecase) LightV2Handler {
+	return &lightV2Handler{lightv1Usecase}
 }
 
-func (h *lightV1Handler) Create() gin.HandlerFunc {
+func (h *lightV2Handler) Create() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		var r model.LightV1Request
+		var r model.LightV2Request
 		if err := ctx.ShouldBindJSON(&r); err != nil {
+			log.Println(err)
 			ctx.JSON(http.StatusBadRequest, model.Response{
 				Message: "Bad Request",
 				Data: struct{}{},
@@ -40,10 +38,11 @@ func (h *lightV1Handler) Create() gin.HandlerFunc {
 	}
 }
 
-func (h *lightV1Handler) Get() gin.HandlerFunc {
+func (h *lightV2Handler) Get() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		var r model.LightV1Request
+		var r model.LightV2Request
 		if err := ctx.ShouldBindJSON(&r); err != nil {
+			log.Println(err)
 			ctx.JSON(http.StatusBadRequest, model.Response{
 				Message: "Bad Request",
 				Data: struct{}{},
@@ -55,32 +54,7 @@ func (h *lightV1Handler) Get() gin.HandlerFunc {
 	}
 }
 
-func (h *lightV1Handler) Handle() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		var r model.LightV1Request
-		if err := ctx.ShouldBindJSON(&r); err != nil {
-			ctx.JSON(http.StatusBadRequest, model.Response{
-				Message: "Bad Request",
-				Data: struct{}{},
-			})
-			return
-		}
-
-		switch strings.ToUpper(r.Action) {
-		case actions.CREATE:
-			h.create(ctx, r)
-		case actions.GET:
-			h.get(ctx, r)
-		default:
-			ctx.JSON(http.StatusNotFound, model.Response{
-				Message: "Action Not Found",
-				Data: struct{}{},
-			})
-		}
-	}
-}
-
-func (h *lightV1Handler) create(ctx *gin.Context, r model.LightV1Request) {
+func (h *lightV2Handler) create(ctx *gin.Context, r model.LightV2Request) {
 	err := h.lightv1Usecase.Create(&r.Data)
 	if err != nil {
 		log.Println(err)
@@ -97,7 +71,7 @@ func (h *lightV1Handler) create(ctx *gin.Context, r model.LightV1Request) {
 	})
 }
 
-func (h *lightV1Handler) get(ctx *gin.Context, r model.LightV1Request) {
+func (h *lightV2Handler) get(ctx *gin.Context, r model.LightV2Request) {
 	filterQuery, err := util.CreateQueryFilter(&r.Query.Filters, nil)
 	if err != nil {
 		log.Println(err)

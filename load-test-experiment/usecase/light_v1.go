@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/pkg/errors"
 	"load-test-experiment/model"
 	"load-test-experiment/repository"
@@ -26,7 +25,6 @@ func (u *lightV1Usecase) Create(s *model.LightV1Shape) error {
 	var fieldThree sql.NullString
 	var fieldFour sql.NullTime
 
-	fmt.Printf("s :=> %+v\n", s)
 	if s == nil {
 		return errors.New("LightV1Usecase: Create: s is nil;")
 	}
