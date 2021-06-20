@@ -1,1 +1,1 @@
-package go_notes
+# Learning Go Notes
