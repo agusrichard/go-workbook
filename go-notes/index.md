@@ -1,1 +1,1 @@
-# Learning Go Notes
+# Go Notes Index
