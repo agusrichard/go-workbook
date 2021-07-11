@@ -1,6 +1,22 @@
 # Importance of Coding Conventions and Standards
 
-### [Importance of Code Quality and Coding Standard in Software Development](https://www.multidots.com/importance-of-code-quality-and-coding-standard-in-software-development/#:~:text=Coding%20standards%20help%20in%20the,and%20thereby%20reduce%20the%20errors.&text=If%20the%20coding%20standards%20are%20followed%2C%20the%20code%20is%20consistent,at%20any%20point%20in%20time)
+</br>
+
+## List of Contents:
+### 1. [Importance of Code Quality and Coding Standard in Software Development](#content-1)
+### 2. [Why are coding standards important?](#content-2)
+
+
+
+</br>
+
+---
+
+## Contents:
+
+### [Importance of Code Quality and Coding Standard in Software Development](https://www.multidots.com/importance-of-code-quality-and-coding-standard-in-software-development/#:~:text=Coding%20standards%20help%20in%20the,and%20thereby%20reduce%20the%20errors.&text=If%20the%20coding%20standards%20are%20followed%2C%20the%20code%20is%20consistent,at%20any%20point%20in%20time) <span id="content-1"></span>
+
+
 Coding standards are a series of procedures for a particular programming language specifying a programming style, the methods, and different procedures.
 A coding standard makes sure that all the developers working on the project are following certain specified guidelines. The code can be easily understood and proper consistency is maintained.
 > **The finished program code should look like that it has been written by a single developer, in a single session.**
@@ -44,10 +60,13 @@ This makes sure our code easy and comfortable to read.
 - Proper organizations of files and folders.
 - Refactoring code </br>
 We have to implement the Open/Close Principle which basically states our code is closed for modification but open for extension.
-  
+
+</br>
+
 ---
 
-## [Why are coding standards important?](https://medium.com/leafgrowio-engineering/why-is-coding-standards-important-319fce79d1a4)
+
+## [Why are coding standards important?](https://medium.com/leafgrowio-engineering/why-is-coding-standards-important-319fce79d1a4) <span id="content-2"></span>
 
 When we write code, we need to make sure that any developer can understand it easily, including ourselves in the future.
 
@@ -61,6 +80,10 @@ In short, code style standards are:
 - Easy to read
 - Easy to understand
 - Easy to maintain
+
+</br>
+
+---
 
 ## References:
 - https://www.multidots.com/importance-of-code-quality-and-coding-standard-in-software-development/#:~:text=Coding%20standards%20help%20in%20the,and%20thereby%20reduce%20the%20errors.&text=If%20the%20coding%20standards%20are%20followed%2C%20the%20code%20is%20consistent,at%20any%20point%20in%20time

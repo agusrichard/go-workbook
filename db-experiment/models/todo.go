@@ -14,5 +14,5 @@ type Todo struct {
 }
 
 func (t *Todo) IsValid() bool {
-	return t.Username != "" || t.Title != ""
+	return t.Username != "" && t.Title != ""
 }

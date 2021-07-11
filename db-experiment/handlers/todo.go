@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"log"
 	"net/http"
 	"strconv"
 )
@@ -45,6 +46,7 @@ func (h *todoHandler) CreateTodo() gin.HandlerFunc {
 
 		err = h.todoUsecase.CreateTodo(&todo)
 		if err != nil {
+			log.Println(err)
 			ctx.JSON(http.StatusInternalServerError, model.Response{
 				Success: false,
 				Message: err.Error(),
@@ -63,6 +65,7 @@ func (h *todoHandler) GetAllTodos() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		todos, err := h.todoUsecase.GetAllTodos()
 		if err != nil {
+			log.Println(err)
 			ctx.JSON(http.StatusInternalServerError, model.Response{
 				Success: false,
 				Message: err.Error(),
@@ -84,6 +87,7 @@ func (h *todoHandler) GetTodoByID() gin.HandlerFunc {
 
 		todo, err := h.todoUsecase.GetTodoByID(id)
 		if err != nil {
+			log.Println(err)
 			ctx.JSON(http.StatusInternalServerError, model.Response{
 				Success: false,
 				Message: err.Error(),
@@ -106,6 +110,7 @@ func (h *todoHandler) FilterTodos() gin.HandlerFunc {
 
 		err := ctx.ShouldBind(&query)
 		if err != nil {
+			log.Println(err)
 			ctx.JSON(http.StatusBadRequest, model.Response{
 				Success: false,
 				Message: "failed to parse filter",
@@ -115,6 +120,7 @@ func (h *todoHandler) FilterTodos() gin.HandlerFunc {
 
 		err = json.Unmarshal([]byte(query.FilterString), &filters)
 		if err != nil {
+			log.Println(err)
 			ctx.JSON(http.StatusBadRequest, model.Response{
 				Success: false,
 				Message: "failed to parse filter",
@@ -127,6 +133,7 @@ func (h *todoHandler) FilterTodos() gin.HandlerFunc {
 
 		todos, err := h.todoUsecase.FilterTodos(queryFilter, query.Skip, query.Take)
 		if err != nil {
+			log.Println(err)
 			ctx.JSON(http.StatusInternalServerError, model.Response{
 				Success: false,
 				Message: err.Error(),
@@ -157,6 +164,7 @@ func (h *todoHandler) UpdateTodo() gin.HandlerFunc {
 
 		err = h.todoUsecase.UpdateTodo(&todo)
 		if err != nil {
+			log.Println(err)
 			ctx.JSON(http.StatusInternalServerError, model.Response{
 				Success: false,
 				Message: err.Error(),
@@ -177,6 +185,7 @@ func (h *todoHandler) DeleteTodo() gin.HandlerFunc {
 
 		err = h.todoUsecase.DeleteTodo(id)
 		if err != nil {
+			log.Println(err)
 			ctx.JSON(http.StatusInternalServerError, model.Response{
 				Success: false,
 				Message: err.Error(),

@@ -8,5 +8,12 @@
       <jdbc-url>jdbc:postgresql://0.0.0.0:5432/restapi_test_app</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
+    <data-source source="LOCAL" name="restapi_db@0.0.0.0" uuid="9b423b8e-849f-4fce-8e93-8ca19d4a66a0">
+      <driver-ref>postgresql</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
+      <jdbc-url>jdbc:postgresql://0.0.0.0:5432/restapi_db</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>

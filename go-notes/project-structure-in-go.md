@@ -1,8 +1,20 @@
-# Project Structure in GO
+# Project Structure in Go
+
+</br>
+
+## List of Contents:
+### 1. [GopherCon 2018: Kat Zien - How Do You Structure Your Go Apps](#content-1)
+### 2. [Go Project Structure Best Practices](#content-2)
+### 3. [How do I Structure my Go Project?](#content-3)
+### 4. [Structuring Applications in Go](#content-4)
+
+</br>
+
+---
 
 ## Contents:
 
-### [GopherCon 2018: Kat Zien - How Do You Structure Your Go Apps](https://www.youtube.com/watch?v=oL6JBUk6tj0)
+### [GopherCon 2018: Kat Zien - How Do You Structure Your Go Apps](https://www.youtube.com/watch?v=oL6JBUk6tj0) <span id="content-1"></span>
 
 Good Structure Goals:
 - Consistent
@@ -71,9 +83,11 @@ This is probably an overkill for small app
 keep main file short, it should only do one thing (e.g running the server)
 ![img_7.png](images/img_7.png)
 
+</br>
+
 ---
 
-### [Go Project Structure Best Practices](https://tutorialedge.net/golang/go-project-structure-best-practices/)
+### [Go Project Structure Best Practices](https://tutorialedge.net/golang/go-project-structure-best-practices/) <span id="content-2"></span>
 
 Some people in Go community follow the well known [golang-standards/project-layout](https://github.com/golang-standards/project-layout). But after the introduction of go modules, this pattern starts to present challenges. 
 
@@ -90,7 +104,11 @@ Benefits:
 
 ![img_8.png](images/img_8.png)
 
-### [How do I Structure my Go Project?](https://www.wolfe.id.au/2020/03/10/how-do-i-structure-my-go-project/)
+</br>
+
+---
+
+### [How do I Structure my Go Project?](https://www.wolfe.id.au/2020/03/10/how-do-i-structure-my-go-project/) <span id="content-3"></span>
 
 This pattern usually used for big project when there are several main.go files with its own binary.
 
@@ -107,9 +125,99 @@ Goals we should consider:
 - Loosely coupled sections of the service or application
 - Aim to ensure it is easy to navigate our way around
 
+</br>
+
+---
+
+## [Structuring Applications in Go](https://medium.com/@benbjohnson/structuring-applications-in-go-3b04be4ff091) <span id="content-4"></span>
+- Don't use global variables
+- You may decide to add a global database connection or a global configuration variable but these globals are a nightmare to use when writing unit tests
+- Snippet
+```go
+type HelloHandler struct {
+    db *sql.DB
+}
+func (h *HelloHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    var name string
+    // Execute the query.
+    row := h.db.QueryRow(“SELECT myname FROM mytable”)
+    if err := row.Scan(&name); err != nil {
+        http.Error(w, err.Error(), 500)
+        return
+    }
+    // Write it back to the client.
+    fmt.Fprintf(w, “hi %s!\n”, name)
+}
+```
+- This is how to use wrapper https://gist.github.com/tsenart/5fc18c659814c078378d
+```go
+func helloHandler(db *sql.DB) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    		var name string
+    		// Execute the query.
+    		row := db.QueryRow("SELECT myname FROM mytable")
+    		if err := row.Scan(&name); err != nil {
+        		http.Error(w, err.Error(), 500)
+        		return
+    		}
+    		// Write it back to the client.
+    		fmt.Fprintf(w, "hi %s!\n", name)
+    	})
+}
+
+func withMetrics(l *log.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		began := time.Now()
+		next.ServeHTTP(w, r)
+		l.Printf("%s %s took %s", r.Method, r.URL, time.Since(began))
+	})
+}
+```
+- Separate your binary from your application
+- Library driven development
+- Wrap types for application-specific context
+```go
+package myapp
+import (
+    "database/sql"
+)
+type DB struct {
+    *sql.DB
+}
+type Tx struct {
+    *sql.Tx
+}
+```
+```go
+// Open returns a DB reference for a data source.
+func Open(dataSourceName string) (*DB, error) {
+    db, err := sql.Open("postgres", dataSourceName)
+    if err != nil {
+        return nil, err
+    }
+    return &DB{db}, nil
+}
+// Begin starts an returns a new transaction.
+func (db *DB) Begin() (*Tx, error) {
+    tx, err := db.DB.Begin()
+    if err != nil {
+        return nil, err
+    }
+    return &Tx{tx}, nil
+}
+```
+- Don’t go crazy with subpackages
+- Using a single root package
+- Organize the most important type at the top of the file and add types in decreasing importance towards the bottom of the file.
+- If you’re writing Go projects the same way you write Ruby, Java, or Node.js projects then you’re probably going to be fighting with the language.
+
+</br>
+
+---
 
 ## References
 - https://www.youtube.com/watch?v=oL6JBUk6tj0
 - https://tutorialedge.net/golang/go-project-structure-best-practices/
 - https://www.wolfe.id.au/2020/03/10/how-do-i-structure-my-go-project/
+- https://medium.com/@benbjohnson/structuring-applications-in-go-3b04be4ff091
 - https://levelup.gitconnected.com/a-practical-approach-to-structuring-go-applications-7f77d7f9c189 (UNREAD)

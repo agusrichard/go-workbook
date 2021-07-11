@@ -3,6 +3,7 @@ package usecase
 import (
 	model "db-experiment/models"
 	repository "db-experiment/repositories"
+	"fmt"
 	"github.com/pkg/errors"
 )
 
@@ -32,6 +33,7 @@ func (u *todoUsecase) CreateTodo(todo *model.Todo) error {
 	}
 
 	if !todo.IsValid() {
+		fmt.Println("here")
 		return errors.New("todo usecase: create todo: username and title can not be empty;")
 	}
 

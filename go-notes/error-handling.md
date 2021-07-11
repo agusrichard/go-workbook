@@ -1,16 +1,25 @@
 # Error Handling
 
-> Don’t just check errors, handle them gracefully
+</br>
+
+## List of Contents:
+### 1. [Don’t just check errors, handle them gracefully](#content-1)
+### 2. [Error handling and Go](#content-2)
+
+
+</br>
+
+---
 
 ## Contents:
 
-### [Don’t just check errors, handle them gracefully](https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully)
+## [Don’t just check errors, handle them gracefully](https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully) <span id="content-1"></span>
 
 We wanted there to be a single way to do error handling, something that we could teach all Go programmers by rote, just as we might teach mathematics, or the alphabet.
 
 However, there is no single way to handle errors. Instead, Go's error handling can be classified into three core strategies.
 
-#### 1. Sentinel errors
+### 1. Sentinel errors
 ```go
 if err == ErrSomething { … }
 ```
@@ -29,7 +38,7 @@ By far the worst problem with sentinel error values is they create a source code
 
 Conclusion: avoid sentinel errors
 
-#### 2. Error types
+### 2. Error types
 ```go
 if err, ok := err.(SomeType); ok { … }
 ```
@@ -79,7 +88,7 @@ Conclusion: avoid error types
 
 While error types are better than sentinel error values, because they can capture more context about what went wrong, error types share many of the problems of error values.
 
-#### 3. Opaque errors
+### 3. Opaque errors
 In my opinion this is the most flexible error handling strategy as it requires the least coupling between your code and caller.
 
 I call this style opaque error handling, because while you know an error occurred, you don’t have the ability to see inside the error. As the caller, all you know about the result of the operation is that it worked, or it didn’t.
@@ -115,7 +124,7 @@ func IsTemporary(err error) bool {
 
 If the error does not implement the temporary interface; that is, it does not have a Temporary method, then then error is not temporary. The key here is this logic can be implemented without importing the package that defines the error or indeed knowing anything about err‘s underlying type–we’re simply interested in its behaviour.
 
-#### Don’t just check errors, handle them gracefully
+### Don’t just check errors, handle them gracefully
 
 This brings me to a second Go proverb that I want to talk about; don’t just check errors, handle them gracefully. Can you suggest some problems with the following piece of code?
 ```go
@@ -151,7 +160,7 @@ return nil
 ```
 But as we saw earlier, this pattern is incompatible with the use of sentinel error values or type assertions, because converting the error value to a string, merging it with another string, then converting it back to an error with fmt.Errorf breaks equality and destroys any context in the original error.
 
-#### Annotating errors
+### Annotating errors
 
 ```go
 // Wrap annotates cause with a message.
@@ -207,7 +216,7 @@ func IsTemporary(err error) bool {
 
 In operation, whenever you need to check an error matches a specific value or type, you should first recover the original error using the errors.Cause function.
 
-#### Only handle errors once
+### Only handle errors once
 
 If you make less than one decision, you’re ignoring the error. As we see here, the error from w.Write is being discarded.
 ```go
@@ -243,7 +252,12 @@ Minimise the number of sentinel error values in your program and convert errors 
 
 Finally, use errors.Cause to recover the underlying error if you need to inspect it.
 
-### [Error handling and Go](https://blog.golang.org/error-handling-and-go)
+</br>
+
+---
+
+## [Error handling and Go](https://blog.golang.org/error-handling-and-go) <span id="content-2"></span>
+
 - Standard usage:
 ```go
 f, err := os.Open("filename.ext")
@@ -323,85 +337,9 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-### [Error handling and Go](https://blog.golang.org/error-handling-and-go)
-- Standard usage:
-```go
-f, err := os.Open("filename.ext")
-if err != nil {
-    log.Fatal(err)
-}
-// do something with the open *File f
-```
-- If you want to create custom error 1
-```go
-// errorString is a trivial implementation of error.
-type errorString struct {
-    s string
-}
+</br>
 
-func (e *errorString) Error() string {
-    return e.s
-}
-```
-- Error message that probably you want to consider
-```go
-func Sqrt(f float64) (float64, error) {
-    if f < 0 {
-        return 0, errors.New("math: square root of negative number")
-    }
-    // implementation
-}
-```
-- Formatting error message, this returns error type
-```go
-fmt.Errorf("math: square root of negative number %g", f)
-```
-- Another example of custom error
-```go
-type SyntaxError struct {
-    msg    string // description of error
-    Offset int64  // error occurred after reading Offset bytes
-}
-
-func (e *SyntaxError) Error() string { return e.msg }
-```
-- Simplify repetitive error handling
-```go
-func init() {
-    http.HandleFunc("/view", viewRecord)
-}
-
-func viewRecord(w http.ResponseWriter, r *http.Request) {
-    c := appengine.NewContext(r)
-    key := datastore.NewKey(c, "Record", r.FormValue("id"), 0, nil)
-    record := new(Record)
-    if err := datastore.Get(c, key, record); err != nil {
-        http.Error(w, err.Error(), 500)
-        return
-    }
-    if err := viewTemplate.Execute(w, record); err != nil {
-        http.Error(w, err.Error(), 500)
-    }
-}
-
-type appHandler func(http.ResponseWriter, *http.Request) error
-
-func viewRecord(w http.ResponseWriter, r *http.Request) error {
-  c := appengine.NewContext(r)
-  key := datastore.NewKey(c, "Record", r.FormValue("id"), 0, nil)
-  record := new(Record)
-  if err := datastore.Get(c, key, record); err != nil {
-      return err
-  }
-  return viewTemplate.Execute(w, record)
-}
-
-func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-  if err := fn(w, r); err != nil {
-    http.Error(w, err.Error(), 500)
-  }
-}
-```
+---
 
 ## References:
 - https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully
