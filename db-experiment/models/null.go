@@ -2,11 +2,12 @@ package model
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 )
-
 
 // NullInt64 is an alias for sql.NullInt64 data type
 type NullInt64 struct {
@@ -115,4 +116,47 @@ func (nt *NullTime) UnmarshalJSON(b []byte) error {
 	nt.Time = x
 	nt.Valid = true
 	return nil
+}
+
+type MyNullString struct {
+	String string
+	Valid  bool
+}
+
+func (ns *MyNullString) Scan(value interface{}) error {
+	var i sql.NullString
+	if err := i.Scan(value); err != nil {
+		return err
+	}
+
+	if reflect.TypeOf(value) == nil {
+		ns.String = ""
+		ns.Valid = false
+	} else {
+		ns.String = i.String
+		ns.Valid = true
+	}
+
+	return nil
+}
+
+func (ns MyNullString) Value() (driver.Value, error) {
+	if len(ns.String) == 0 {
+		return nil, nil
+	}
+	return ns.String, nil
+}
+
+func (ns *MyNullString) MarshalJSON() ([]byte, error) {
+	if !ns.Valid {
+		return json.Marshal("")
+	}
+
+	return json.Marshal(ns.String)
+}
+
+func (ns *MyNullString) UnmarshalJSON(b []byte) error {
+	err := json.Unmarshal(b, &ns.String)
+	ns.Valid = (err == nil)
+	return err
 }
