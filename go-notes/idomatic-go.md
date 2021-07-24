@@ -5,6 +5,7 @@
 ## List of Contents:
 ### 1. [The Zen of Go](#content-1)
 ### 2. [Golang UK Conference 2016 - Mat Ryer - Idiomatic Go Tricks](#content-2)
+### 3. [Idiomatic Go](#content-3)
 
 
 </br>
@@ -289,7 +290,207 @@
 
 ---
 
+## [Idiomatic Go](https://about.sourcegraph.com/go/idiomatic-go/) <span id="content-3"></span>
+
+### What is idiomatic Go?
+- Orthogonality: In programming terms "orthogonality" means that pieces are independent from each other. Changes to one part, a type, package, program, etc, have minimal to no effect on other parts.
+- Simplicity
+  - Go has no classes; methods can be added to any type.
+  - It has no inheritance; interfaces are implicitly satisfied.
+  - Types stand alone by themselves; they just are and have no hierarchy.
+  - Methods aren’t special; they’re just functions.
+- Readability: Go reduces clutter and noise. There are no header files, unsurprising syntax, and everything can only be declared once per block.
+
+### Anti-patterns
+
+### Tiny Package Syndrome
+- The tiny package syndrome anti-pattern usually appears with a directory structure that looks something like this: </br>
+  ```go
+  context/                context (cont...)/
+    cqlsession/             requestid/
+      cqlsession.go           requestid.go
+    dao/                    sinkctx/
+      dao.go                  sink.go
+    api/                    starttime/
+      api.go                  starttime.go
+    logtoken/               time/
+      logtoken.go             time.go
+    metricsapi/             tx/
+      metricsapi.go           tx.go
+    outlet/                 user/
+      outlet.go               user.go
+    producers/              version/
+      producers.go            version.go
+  ```
+- The better way: </br>
+  ```go
+   context/
+    cqlsession.go
+    dao.go
+    api.go
+    logtoken.go
+    metricsapi.go
+    outlet.go
+    producers.go
+    requestid.go
+    sink.go
+    starttime.go
+    time.go
+    tx.go
+    user.go
+    version.go
+  ```
+- Key takeaways:
+  - Group related functionality in the same package
+  - Be weary of lots of untested micro-packages under a single directory.
+
+
+### Premature Exportation
+- Developers have a drive to taxonimize things and split them into the smallest possible pieces. This excessive over taxonification, in order to derive the smallest, DRYest piece of code can result in many small packages. 
+- The use of an `internal` directory can be used to signal intent that these packages are not meant for external consumption.
+- Key takeaways:
+  - Don’t export types, variables, function and constants until there is a need to do so.
+  - The DRYest, smallest, most segmented packages lead to the need to export everything.
+  - Keep packages that are not meant for external consumption in an internal folder.
+
+### Package `util`
+- A common pattern found in projects that do lot of group-by-kind is to have some miscellaneous pieces left over. Then we put them in `util`
+- Notice this piece of code. It's better for us just to create package `generator` or `generate` </br>
+  ```go
+  func GenerateRandomBytes(n int) ([]byte, error) { ... }
+  util.GenerateRandomBytes(10)
+
+  func GenerateRandomString(n int) (string, error) { ... }
+  util.GenerateRandomString(10)
+
+  func Cert(hostname string) (string, string, error) { ... }
+  util.Cert("foozle.com")
+  ```
+- Key takeaways:
+  - Package names have semantic meaning.
+  - Package names should describe the purpose of the package, not it’s contents.
+  - The only part of the package import path that matters is the right most name.
+  - `util` says nothing about the purpose of a package beyond a grouping of bits.
+
+
+### Config Structs:
+- It's common to see `Config` or `Options` with a lot of members </br>
+  ```go
+  type Config struct {
+    MaxLineLength                       int
+    BackBuff                            int
+    BatchSize                           int
+    NumOutlets                          int
+    InputFormat                         int
+    MaxAttempts                         int
+    Prival                              string
+    Procid                              string
+    Hostname                            string
+    Appname                             string
+    Msgid                               string
+    // a total of 28 members
+  ```
+- The problem is if we are just using several of these members, why should we put them in one config struct? Instead, pass in the only information each function uses. Then we can get a better sense of what the function needs.
+- Key takeaways:
+  - Config structs increase coupling
+  - Config structs Obfuscate the API of the functions or types that accept them, and hides complexity.
+  - Only pass in the information a function needs.
+
+### Pointer All The Things
+- Pointers are about ownership. When you pass a pointer to a function you are delegating ownership of the pointee to that function.
+- If the pointer value “escapes” the function that created it, it may be moved to the heap, along with the value it points to. If you think it will be faster, benchmark it.
+- Key takeaways:
+  - Pointers are about the ownership of data.
+  - They aren’t necessarily faster. Use benchmarks to prove that the additional overhead is worth it.
+  - Remember one to the Go proverbs: Don’t communicate by sharing memory, share memory by communicating.
+
+### context.Value
+- Use context.Value() and context.WithValue() sparingly. They create undocumented, side channel APIs.
+- If you still feel the need to use them, document the values that may be extracted from the context and the purpose for those values.
+- Use WithTimeout(), WithDeadline() and WithCancel() as they are a great abstraction around cancelation.
+
+
+### Asynchronous APIs
+- Example: </br>
+  ```go
+  func Logs() <-chan logs {
+      c := make(chan logs)
+      go func() { // Receive Logs }
+      return c
+  }
+
+  func main() {
+      for l := range Logs() {
+          // Do stuff with each l
+      }
+  }
+  ```
+- Issues about the above example:
+  - How is the goroutine going to be shutdown?
+  - How is the size of the channel controlled?
+  - Closing the channel received from Logs() is likely to result in a panic
+  - How do errors from the goroutine get communicated?
+  - What if a synchronous API is needed?
+- Key takeaways:
+  - Provide synchronous APIs.
+  - It is possible to make a synchronous API async, but much harder, if not impossible, to do the inverse. Leave the concurrency to someone else.
+  - As a general rule, it should be uncommon to expose channels in an API. Use them internally instead.
+  - For inspiration see the stdlib http package. This package has a fairly large API surface and does quite a lot. It uses channels internally, but only exposes one in the CloseNotifier type.
+
+### If-then-else
+- Example: </br>
+  ```go
+  func things(x int) someType {
+  	if x > 2 {
+  		return 100
+  	} else {
+  		return 200
+  	}
+  }
+
+  // Can be simplifiend
+  func things(x int) someType {
+	if x > 2 {
+  		return 100
+  	}
+  	return 200
+  }
+  ```
+- Keep the expected "happy-path" of a function is de-dented to the left, instead of weaving it through various if-else blocks.
+- Key takeaways:
+  - Handle unexpected cases and errors early and return often.
+  - Keep common or happy paths de-dented.
+  - When it’s not possible refactor and/or redesign.
+
+
+### Panic in a Lib
+- Return errors, don’t panic.
+- Only panic when an error can’t be handled directly or the handling can’t be delegated to the upstream caller.
+- This should only happen when the program cannot make any forward progress.
+
+### Interface All The Things
+- Small, focused interfaces are the key to writing powerful and flexible go code. 
+- These large interfaces tend to be defined up-front. They aren’t discovered across implementations at a later date. Interfaces should be discovered from existing types and extracted out of them.
+- Don't overengineer by introducing interface early on
+- The `io.Reader` and `io.Writer` interfaces weren't designed up front, they were discovered later.
+- Key takeaways:
+  - The bigger the interface, the weaker the abstraction.
+  - Rethinking the abstraction and pivoting away from what is being done to how it’s being done can help. Though sometimes the inverse is true.
+  - There are other ways to test things then mocking an interface. The httptest.Server type’s handlers and network servers are pretty easy to write in Go.
+
+### interface{}
+- The empty interface says nothing. Notice that i does not tell us anything.</br>
+  ```go
+  func Voila(i interface{}) { ... }
+
+  ```
+
+</br>
+
+---
+
 
 ## References:
 - https://dave.cheney.net/2020/02/23/the-zen-of-go
 - https://www.youtube.com/watch?v=yeetIgNeIkc
+- https://about.sourcegraph.com/go/idiomatic-go/
