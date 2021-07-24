@@ -4,6 +4,7 @@
 
 ## List of Contents:
 ### 1. [The Zen of Go](#content-1)
+### 2. [Golang UK Conference 2016 - Mat Ryer - Idiomatic Go Tricks](#content-2)
 
 
 </br>
@@ -115,5 +116,180 @@
 ---
 
 
+## [Golang UK Conference 2016 - Mat Ryer - Idiomatic Go Tricks](https://www.youtube.com/watch?v=yeetIgNeIkc) <span id="content-2"></span>
+
+- Idiomatic </br>
+  adjective: Using, containing, or denoting expressions that are natural to a native speaker
+- `defer` to do something when the function returns
+- Line of sight:
+  - definition: "a straight line along which an observer has unobstracted vision"
+  - Happy path is aligned to the left
+  - Error handling and edge cases indented
+- Example of bad line of sight: </br>
+  ```go
+  func DoSomething() error {
+    val, err := GetSomething()
+    if err == nil {
+      ... do something
+
+    } else {
+      return err
+    }
+
+    defer val.Close()
+
+    result, err := GetMeAnother()
+    if err == nil {
+      for _, v := range result {
+        item, err := GetOne()
+        if err == nil {
+          ...
+        } else {
+          ...
+        }
+      }
+    } else {
+      ...
+    }
+  }
+  ```
+- Line of sight tips:
+  - Make happy return that last statement if possible
+  - Next time we write else, consider flipping the logic </br>
+    ```go
+    // Before
+    if something.OK() {
+      ...
+    } else {
+      return false, err
+    }
+
+    // After
+    if !something.OK() {
+      return false, err
+    }
+
+    ...
+    return true, nil
+    ```
+- Single method interfaces
+  - Example: </br>
+    ```go
+    type Reader interface {
+      Read(p []byte)(n int, err error)
+    }
+    ```
+  - Interface consisting of only one method
+  - Simpler = more powerful and useful
+  - Easy to implement
+  - Used throughout the standard library
+- Log blocks
+  - Better way: </br>
+    ```go
+    func foo() error {
+      log.Println("--------")
+      defer log.Println("--------")
+
+      ...
+    }
+    ```
+- Regarding unit testing
+  - Return teardown function when setup the test
+
+- Good timing
+  - Let's write a function to measure the time a function is running </br>
+    ```go
+    func Timeit(name string) func() {
+      t := time.Now()
+      log.Println("Started")
+      return func() {
+        d := time.Now()
+        log.Println(name, "took", d)
+      }
+    }
+
+
+    func MyFunc() error {
+      stop := Timeit()
+      defer stop()
+
+      ...
+    }
+    ```
+
+- Discover interface
+  - If we have several functions that have the same function signature call and can be called by another function, then it's better to use that function who is calling an interface as an argument.
+  - Example: </br>
+    ```go
+    type Sizer interface {
+      Size() int64
+    }
+
+    func Fits(capacity int64, y Sizer) bool {
+      return capacity > y.Size()
+    }
+
+    type Sizers []Sizer
+
+    func (s Sizers) Size() int64 {
+      var total int64
+      for _, sizer := range s {
+        total += sizer.Size()
+      }
+
+      return total
+    }
+    ```
+- Using simple mocks:
+  - Just write a simple mock using a struct </br>
+    ```go
+    type MailSender interface {
+      Send()
+      SendFrom()
+    }
+    type MockedMailSender struct {
+      SendFunc func()
+      SendFromFunc func()
+    }
+    ```
+- Mocking other people's structs
+  - Let's say somebody writes a struct with some methods in it. Since, there is no interface to mock, then just make our own.
+
+- Empty struct implementations
+  - Empty struct{} to group methods together
+  - Methods don't capture the receiver
+
+- Be obvious not clever
+  - Example:  </br>
+    ```go
+    // Better don't do this
+    func Something() error {
+      defer Timeit()
+    }
+
+    // Better to do this
+    func Something() error {
+      stop := Timeit() 
+      defer stop()
+    }
+    ```
+
+- How to become a native speaker
+  - Read the standard library
+  - Write obvious code (not clever)
+  - Don't surprise your users
+  - Seek simplicity
+  - Learn from others
+  - Participate in open-source projects
+  - Ask for reviews and accept critisims
+  - Help others when you spot something (and be kind)
+
+
+</br>
+
+---
+
+
 ## References:
 - https://dave.cheney.net/2020/02/23/the-zen-of-go
+- https://www.youtube.com/watch?v=yeetIgNeIkc
