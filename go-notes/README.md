@@ -9,4 +9,5 @@
 ### 5. [Testing](./testing.md)
 ### 6. [Project Structure](./project-structure-in-go.md)
 ### 7. [General Coding Conventions](./coding-conventions.md)
-### 8. [Others](./others.md)
+### 8. [Idiomatic Go](./idiomatic-go.md)
+### 9. [Others](./others.md)
