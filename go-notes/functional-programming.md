@@ -5,6 +5,7 @@
 ## List of Contents:
 ## 1. [Functional programming in Go](#content-1)
 ## 2. [Functional Go](#content-2)
+## 3. [First-Class Functions in Golang](#content-3)
 
 </br>
 
@@ -161,6 +162,8 @@ fullname := firstname + " " + lastname
 - Although Golang supports functional programming, it wasn’t designed for this purpose.
 - Functional programming improves the readability of your code because functions are pure.
 - Pure functions are easier to test since there is no internal state that can alter the output.
+
+**[⬆ back to top](#list-of-contents)**
 
 </br>
 
@@ -336,11 +339,223 @@ Code from learning session: https://github.com/agusrichard/go-workbook/tree/mast
   Reduce(Filter(pred, createValues), sum, uint64).(uint64)
   ```
 
+**[⬆ back to top](#list-of-contents)**
 
 </br>
 
 ---
 
+## [First-Class Functions in Golang](https://levelup.gitconnected.com/first-class-functions-in-golang-ef2a5001bb4f) <span id="content-3"></span>
+
+### Assigning functions to variables
+- In the Go language, you are allowed to assign a function to a variable.
+- Example:
+  ```go
+  package main
+
+  import "fmt"
+
+  func main() {
+  	// Declaring two int values num1 and num2 with values 10, 5 resepectively
+  	num1, num2 := 10, 5
+
+  	// Assigning function sub to a varible f1.
+  	f1 := sub
+  	fmt.Printf("\nType of f1 : %T\t\tResult: %d", f1, f1(num1, num2))
+  	//Output : Type of f1 : func(int, int) int		Result: 5
+
+  	// Assigning function add a varible f2.
+  	f2 := add
+  	fmt.Printf("\nType of f2 : %T\t\tResult: %d", f2, f2(num1, num2))
+  	//Output : Type of f2 : func(int, int) int		Result: 15
+
+  	// Assigning function mul a varible f3.
+  	f3 := mul
+  	fmt.Printf("\nType of f3 : %T\t\tResult: %d", f3, f3(num1, num2))
+  	//Output : Type of f3 : func(int, int) int		Result: 50
+
+  	// Assigning function div a varible f4.
+  	f4 := div
+  	fmt.Printf("\nType of f4 : %T\t\tResult: %d", f4, f4(num1, num2))
+  	//Output : Type of f4 : func(int, int) int		Result: 2
+
+  }
+  func sub(num1, num2 int) int {
+  	return num1 - num2
+  }
+  func add(num1, num2 int) int {
+  	return num1 + num2
+  }
+  func mul(num1, num2 int) int {
+  	return num1 * num2
+  }
+  func div(num1, num2 int) int {
+  	return num1 / num2
+  }
+  ```
+
+### Passing function to other functions
+- Variables can refer to functions, and variables can be passed to functions, which means Go allows you to pass functions to other functions.
+- Example:
+  ```go
+  package main
+
+  import "fmt"
+
+  /* MathOperation : The Math Operation function accepts three parameters, num1, num2,and the third parameter 
+     is a function that performs one of the basic operations on num1 and num2. */
+  func MathOperation(num1 int, num2 int, calculate func(int, int) int) int {
+  	return calculate(num1, num2)
+  }
+
+  func main() {
+  	num1, num2 := 10, 5
+
+  	//Passing add function as the third parameter
+  	operation := MathOperation(num1, num2, add)
+  	fmt.Println(operation) //This will print 15
+
+  	//Passing sub function as the third parameter
+  	operation = MathOperation(num1, num2, sub)
+  	fmt.Println(operation) //This will print 5
+
+  	//Passing mul function as the third parameter
+  	operation = MathOperation(num1, num2, mul)
+  	fmt.Println(operation) //This will print 50
+
+  	//Passing div function as the third parameter
+  	operation = MathOperation(num1, num2, div)
+  	fmt.Println(operation) //This will print 2
+  }
+
+  func sub(num1, num2 int) int {
+  	return num1 - num2
+  }
+  func add(num1, num2 int) int {
+  	return num1 + num2
+  }
+  func mul(num1, num2 int) int {
+  	return num1 * num2
+  }
+  func div(num1, num2 int) int {
+  	return num1 / num2
+  }
+  ```
+
+### Declaring function types
+- It’s possible to declare a new type for a function to condense and clarify the code that refers to it. Function types and function values can be used and passed around just like other values.
+- Example:
+  ```go
+  package main
+
+  import "fmt"
+
+  // Declare func type that will always receive two int parameters and return an int.
+  type operation func(num1 int, num2 int) int
+
+  // Declare a function that takes the first argument of type operation, second and third parameters are arguments to first one.
+  func calculate(op operation, num1 int, num2 int) int {
+  	//Process passed operation and return the result.
+  	return op(num1, num2)
+  }
+
+  func main() {
+  	num1, num2 := 10, 5
+
+  	//Passing add function as the operation parameter
+  	result := calculate(add, num1, num2)
+  	fmt.Println(result) // This will print 15
+
+  	//Passing sub function as the operation parameter
+  	result = calculate(sub, num1, num2)
+  	fmt.Println(result) // This will print 2
+
+  	//Passing mul function as the operation parameter
+  	result = calculate(mul, num1, num2)
+  	fmt.Println(result) // This will print 50
+
+  	//Passing div function as the operation parameter
+  	result = calculate(div, num1, num2)
+  	fmt.Println(result) // This will print 5
+
+  }
+  func sub(num1, num2 int) int {
+  	return num1 - num2
+  }
+  func add(num1, num2 int) int {
+  	return num1 + num2
+  }
+  func mul(num1, num2 int) int {
+  	return num1 * num2
+  }
+  func div(num1, num2 int) int {
+  	return num1 / num2
+  }
+  ```
+
+### Closures and anonymous functions
+- An anonymous function also called a function literal in Go, is a function without a name. Unlike regular functions, function literals are closures because they keep references to variables in the surrounding scope.
+
+### Assign an anonymous function to a variable
+- Example:
+  ```go
+  package main
+
+  import "fmt"
+
+  //Assigns an anonymous function to a variable sayHelloWorld
+  var sayHelloWorld = func() {
+  	fmt.Println("Hello World !")
+  }
+  func main() {
+  	sayHelloWorld() // Hello World !
+  }
+  ```
+
+### Assign an anonymous function to a variable in the local scope
+- Example:
+  ```go
+  package main
+
+  import "fmt"
+
+  func main() {
+  	//Assigns an anonymous function to a variable sayHelloWorld
+  	sayHelloWorld := func(userName string) {
+  		fmt.Println("Hello", userName)
+  	}
+  	//Invoke  sayHelloWorld
+  	sayHelloWorld("Sharad") // Print : Hello Sharad
+  }
+  ```
+
+### Returning function from the function
+- Example:
+  ```go
+  package main
+
+  import (
+  	"fmt"
+  )
+  // sayHello returns a function that prints the sayHello's parameter
+  func sayHello(name string) func() {
+  	return func() {
+  		fmt.Printf("Hello %s", name)
+  	}
+  }
+  func main() {
+  	f := sayHello("Sharad")
+  	f() // Print : Hello Sharad
+  }
+  ```
+
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
 ## References:
 - https://blog.logrocket.com/functional-programming-in-go/
 - https://medium.com/@geisonfgfg/functional-go-bc116f4c96a4
+- https://levelup.gitconnected.com/first-class-functions-in-golang-ef2a5001bb4f
