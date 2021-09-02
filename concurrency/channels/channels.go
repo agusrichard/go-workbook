@@ -58,7 +58,7 @@ func main() {
 		fmt.Println("Goroutine one initialized!")
 		dur := time.Millisecond * time.Duration(rand.Intn(5000))
 		time.Sleep(dur)
-		name <- "Sekardayu Hana Pradiani"
+		name <- "Sherlock Holmes"
 		fmt.Println("Goroutine one done!", dur)
 	}(name)
 

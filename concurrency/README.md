@@ -6,6 +6,7 @@
 ### 1. [Concurrency](#content-1)
 ### 2. [Concurrency With Golang Goroutines](#content-2)
 ### 3. [Go Channels Tutorial](#content-3)
+### 4. [Go WaitGroup Tutorial](#content-4)
 
 
 </br>
@@ -359,9 +360,284 @@
   bufferedChannel := make(chan int, 3)
   ```
 - By changing this to a buffered channel, our send operation, c <- value only blocks within our goroutines should the channel be full.
-- 
+
+
+## [Go WaitGroup Tutorial](https://tutorialedge.net/golang/go-waitgroup-tutorial/) <span id="content-4"></span>
+
+### Understanding WaitGroups
+- When you start writing applications in Go that leverage goroutines, you start hitting scenarios where you need to block the execution of certain parts of your code base, until these goroutines have successfully executed.
+- Example:
+  ```go
+  package main
+
+  import "fmt"
+
+  func myFunc() {
+      fmt.Println("Inside my goroutine")
+  }
+
+  func main() {
+      fmt.Println("Hello World")
+      go myFunc()
+      fmt.Println("Finished Execution")
+  }
+  ```
+- The goroutine from the above code doesn't have a chance to run before the main function invocation terminates.
+- `WaitGroups` essentially allow us to tackle this problem by blocking until any goroutines within that WaitGroup have successfully executed.
+- We first call .Add(1) on our WaitGroup to set the number of goroutines we want to wait for, and subsequently, we call .Done() within any goroutine to signal the end of its' execution.
+
+### A Simple Example
+- Example:
+  ```go
+  package main
+
+  import (
+      "fmt"
+      "sync"
+  )
+
+  func myFunc(waitgroup *sync.WaitGroup) {
+      fmt.Println("Inside my goroutine")
+      waitgroup.Done()
+  }
+
+  func main() {
+      fmt.Println("Hello World")
+
+      var waitgroup sync.WaitGroup
+      waitgroup.Add(1)
+      go myFunc(&waitgroup)
+      waitgroup.Wait()
+
+      fmt.Println("Finished Execution")
+  }
+  ```
+- As you can see, we’ve instantiated a new sync.WaitGroup and then called the .Add(1) method, before attempting to execute our goroutine.
+- We’ve updated the function to take in a pointer to our existing sync.WaitGroup and then called the .Done() method once we have successfully finished our task.
+- Finally, on line 19, we call waitgroup.Wait() to block the execution of our main() function until the goroutines in the waitgroup have successfully completed.
+
+
+### Anonymous Functions
+- Example:
+  ```go
+  package main
+
+  import (
+      "fmt"
+      "sync"
+  )
+
+  func main() {
+      fmt.Println("Hello World")
+
+      var waitgroup sync.WaitGroup
+      waitgroup.Add(1)
+      go func() {
+          fmt.Println("Inside my goroutine")
+          waitgroup.Done()
+      }()
+      waitgroup.Wait()
+
+      fmt.Println("Finished Execution")
+  }
+  ```
+
+### Real Example
+- Example:
+  ```go
+  package main
+
+  import (
+      "fmt"
+      "log"
+      "net/http"
+      "sync"
+  )
+
+  var urls = []string{
+      "https://google.com",
+      "https://tutorialedge.net",
+      "https://twitter.com",
+  }
+
+  func fetch(url string, wg *sync.WaitGroup) (string, error) {
+      resp, err := http.Get(url)
+      if err != nil {
+          fmt.Println(err)
+          return "", err
+      }
+      wg.Done()
+      fmt.Println(resp.Status)
+      return resp.Status, nil
+  }
+
+  func homePage(w http.ResponseWriter, r *http.Request) {
+      fmt.Println("HomePage Endpoint Hit")
+      var wg sync.WaitGroup
+
+      for _, url := range urls {
+          wg.Add(1)
+          go fetch(url, &wg)
+      }
+
+      wg.Wait()
+      fmt.Println("Returning Response")
+      fmt.Fprintf(w, "Responses")
+  }
+
+  func handleRequests() {
+      http.HandleFunc("/", homePage)
+      log.Fatal(http.ListenAndServe(":8081", nil))
+  }
+
+  func main() {
+      handleRequests()
+  }
+
+  ```
+
+### My Example
+- One:
+  ```go
+  func main() {
+  	fmt.Println("Working on WaitGroup")
+
+  	var wg sync.WaitGroup
+  	start := time.Now()
+  	defer func() {
+  		dur := time.Since(start)
+  		fmt.Println("Dur", dur)
+  	}()
+
+  	for i := 0; i < 100; i++ {
+  		wg.Add(1)
+  		go func() {
+  			dur := time.Duration(rand.Intn(1000)) * time.Millisecond
+  			time.Sleep(dur)
+  			fmt.Println("Hello", dur)
+  			wg.Done()
+  		}()
+  	}
+
+  	wg.Wait()
+  	fmt.Println("Done on WaitGroup")
+  }
+  ```
+- Two:
+  ```go
+  func main() {
+  	fmt.Println("Working on WaitGroup")
+
+  	var wg sync.WaitGroup
+  	start := time.Now()
+  	defer func() {
+  		dur := time.Since(start)
+  		fmt.Println("Dur", dur)
+  	}()
+
+  	num := make(chan int, 100)
+  	for i := 0; i < 100; i++ {
+  		wg.Add(1)
+  		go func(i int) {
+  			fmt.Println("Sending a num")
+  			randInt := rand.Intn(1000)
+  			dur := time.Duration(randInt) * time.Millisecond
+  			time.Sleep(dur)
+
+  			num <- i
+  			fmt.Println("Done sending a num")
+  		}(i)
+  	}
+
+  	var nums []int
+  	go func() {
+  		for n := range num {
+  			wg.Done()
+  			nums = append(nums, n)
+  		}
+  	}()
+
+  	wg.Wait()
+
+  	fmt.Println("nums", nums)
+  	fmt.Println("Done on WaitGroup")
+  }
+  ```
+- Three
+  ```go
+  func main() {
+  	fmt.Println("Start working on WaitGroup")
+  	start := time.Now()
+  	defer func() {
+  		fmt.Println("Done working on WaitGroup")
+  		fmt.Println("Duration", time.Since(start))
+  	}()
+
+  	name := make(chan string)
+  	defer close(name)
+  	go func(name chan<- string) {
+  		fmt.Println("Sending a name")
+  		dur := time.Duration(rand.Intn(1000)) * time.Millisecond
+  		time.Sleep(dur)
+  		name <- "John"
+  		fmt.Println("Done sending a name")
+  	}(name)
+
+  	age := make(chan int)
+  	defer close(age)
+  	go func(age chan<- int) {
+  		fmt.Println("Sending a age")
+  		dur := time.Duration(rand.Intn(1000)) * time.Millisecond
+  		time.Sleep(dur)
+  		age <- 23
+  		fmt.Println("Done sending a age")
+  	}(age)
+
+  	nums := make(chan []int)
+  	defer close(nums)
+  	go func(nums chan<- []int) {
+  		var list []int
+  		var wg sync.WaitGroup
+
+  		num := make(chan int, 100)
+  		for i := 0; i < 100; i++ {
+  			wg.Add(1)
+  			go func(i int, wg *sync.WaitGroup) {
+  				fmt.Println("Sending a num")
+  				dur := time.Duration(rand.Intn(5000)) * time.Millisecond
+  				time.Sleep(dur)
+  				num <- i
+  				fmt.Println("Done sending a num", i)
+  			}(i, &wg)
+  		}
+
+  		go func(nums chan<- []int) {
+  			for n := range num {
+  				list = append(list, n)
+  				wg.Done()
+  			}
+  		}(nums)
+
+  		wg.Wait()
+
+  		nums <- list
+  	}(nums)
+
+  	fmt.Println("name", <-name)
+  	fmt.Println("age", <-age)
+  	fmt.Println("nums", <-nums)
+  }
+  ```
+
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
 
 ## References:
 - https://www.golang-book.com/books/intro/10
 - https://tutorialedge.net/golang/concurrency-with-golang-goroutines/
 - https://tutorialedge.net/golang/go-channels-tutorial/
+- https://tutorialedge.net/golang/go-waitgroup-tutorial/
