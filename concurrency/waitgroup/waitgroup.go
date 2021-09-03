@@ -137,6 +137,13 @@ import (
 // 	fmt.Println("Done on WaitGroup")
 // }
 
+type Response struct {
+	name       string
+	age        int
+	ageDoubled int
+	nums       []int
+}
+
 func main() {
 	fmt.Println("Start working on WaitGroup")
 	start := time.Now()
@@ -156,12 +163,14 @@ func main() {
 	}(name)
 
 	age := make(chan int)
+	ageDoubled := make(chan int)
 	defer close(age)
 	go func(age chan<- int) {
 		fmt.Println("Sending a age")
 		dur := time.Duration(rand.Intn(1000)) * time.Millisecond
 		time.Sleep(dur)
 		age <- 23
+		ageDoubled <- 23 * 2
 		fmt.Println("Done sending a age")
 	}(age)
 
@@ -195,7 +204,12 @@ func main() {
 		nums <- list
 	}(nums)
 
-	fmt.Println("name", <-name)
-	fmt.Println("age", <-age)
-	fmt.Println("nums", <-nums)
+	response := Response{
+		name:       <-name,
+		age:        <-age,
+		ageDoubled: <-ageDoubled,
+		nums:       <-nums,
+	}
+
+	fmt.Printf("Response: %+v\n", response)
 }
