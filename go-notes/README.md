@@ -10,4 +10,7 @@
 ### 6. [Project Structure](./project-structure-in-go.md)
 ### 7. [General Coding Conventions](./coding-conventions.md)
 ### 8. [Idiomatic Go](./idiomatic-go.md)
-### 9. [Others](./others.md)
+### 9. [Inner Go](./inner-go.md)
+### 10. [Anti Patterns](./anti-patterns.md)
+### 11. [Concurrency](./concurrency.md)
+### 12. [Functional Programming](./functional-programming.md)

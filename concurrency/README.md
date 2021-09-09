@@ -7,6 +7,7 @@
 ### 2. [Concurrency With Golang Goroutines](#content-2)
 ### 3. [Go Channels Tutorial](#content-3)
 ### 4. [Go WaitGroup Tutorial](#content-4)
+### 5. [Go Mutex Tutorial](#content-5)
 
 
 </br>
@@ -636,8 +637,117 @@
 
 ---
 
+## [Go Mutex Tutorial](https://tutorialedge.net/golang/go-mutex-tutorial/) <span id="content-5"></span>
+
+### The Theory
+- A Mutex, or a mutual exclusion is a mechanism that allows us to prevent concurrent processes from entering a critical section of data whilst it’s already being executed by a given process.
+- Let’s think about an example where we have a bank balance and a system that both deposits and withdraws sums of money from that bank balance. Within a single threaded, synchronous program, this would be incredibly easy. We could effectively guarantee that it would work as intended every time with a small battery of unit tests
+- However, if we were to start introducing multiple threads, or multiple goroutines in Go’s case, we may start to see issues within our code.
+
+### A Simple Example
+- Example:
+  ```go
+  package main
+
+  import (
+      "fmt"
+      "sync"
+  )
+
+  var (
+      mutex   sync.Mutex
+      balance int
+  )
+
+  func init() {
+      balance = 1000
+  }
+
+  func deposit(value int, wg *sync.WaitGroup) {
+      mutex.Lock()
+      fmt.Printf("Depositing %d to account with balance: %d\n", value, balance)
+      balance += value
+      mutex.Unlock()
+      wg.Done()
+  }
+
+  func withdraw(value int, wg *sync.WaitGroup) {
+      mutex.Lock()
+      fmt.Printf("Withdrawing %d from account with balance: %d\n", value, balance)
+      balance -= value
+      mutex.Unlock()
+      wg.Done()
+  }
+
+  func main() {
+      fmt.Println("Go Mutex Example")
+
+  	var wg sync.WaitGroup
+  	wg.Add(2)
+      go withdraw(700, &wg)
+      go deposit(500, &wg)
+      wg.Wait()
+
+      fmt.Printf("New Balance %d\n", balance)
+  }
+  ```
+- So, let’s break down what we have done here. Within both our deposit() and our withdraw() functions, we have specified the first step should be to acquire the mutex using the mutex.Lock() method.
+- Each of our functions will block until it successfully acquires the Lock. Once successful, it will then proceed to enter it’s critical section in which it reads and subsequently updates the account’s balance. Once each function has performed it’s task, it then proceeds to release the lock by calling the mutex.Unlock() method.
+
+### Avoiding Deadlock
+- Deadlock is a scenario within our code where nothing can progress due to every goroutine continually blocking when trying to attain a lock.
+- If you are developing goroutines that require this lock and they can terminate in a number of different ways, then ensure that regardless of how your goroutine terminates, it always calls the Unlock() method.
+- Calling Lock() Twice
+
+### Semaphore vs Mutex
+- Everything you can achieve with a Mutex can be done with a channel in Go if the size of the channel is set to 1.
+- However, the use case for what is known as a binary semaphore - a semaphore/channel of size 1 - is so common in the real world that it made sense to implement this exclusively in the form of a mutex.
+
+### My example:
+- Example:
+  ```go
+  func appendToSlice(s *[]int, wg *sync.WaitGroup, mu *sync.Mutex) {
+  	mu.Lock()
+  	fmt.Println("Appending the slice")
+  	*s = append(*s, 10)
+  	mu.Unlock()
+  	wg.Done()
+  }
+
+  func popTheSlice(s *[]int, wg *sync.WaitGroup, mu *sync.Mutex) {
+  	mu.Lock()
+  	fmt.Println("Popping the slice")
+  	*s = (*s)[:len(*s)-1]
+  	mu.Unlock()
+  	wg.Done()
+  }
+
+  func main() {
+  	var wg sync.WaitGroup
+  	var mu sync.Mutex
+
+  	s := []int{1, 2, 3, 4, 5}
+  	wg.Add(2)
+  	go appendToSlice(&s, &wg, &mu)
+  	go popTheSlice(&s, &wg, &mu)
+  	fmt.Println("I don't know what I am doing in here")
+  	fmt.Println("Yeah... Me too!")
+
+  	wg.Wait()
+  	fmt.Println("s", s)
+  }
+  ```
+
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
+
 ## References:
 - https://www.golang-book.com/books/intro/10
 - https://tutorialedge.net/golang/concurrency-with-golang-goroutines/
 - https://tutorialedge.net/golang/go-channels-tutorial/
 - https://tutorialedge.net/golang/go-waitgroup-tutorial/
+- https://tutorialedge.net/golang/go-mutex-tutorial/
