@@ -7,6 +7,7 @@
 ### 2. [Go Project Structure Best Practices](#content-2)
 ### 3. [How do I Structure my Go Project?](#content-3)
 ### 4. [Structuring Applications in Go](#content-4)
+### 5. [Clean Architecture in Go](#content-5)
 
 </br>
 
@@ -215,9 +216,180 @@ func (db *DB) Begin() (*Tx, error) {
 
 ---
 
+
+## [Clean Architecture in Go](https://rubinthomasdev.medium.com/clean-architecture-in-go-e811f233cc04) <span id="content-3"></span>
+
+
+### Clean Architecture.
+- Diagram:
+  ![Diagram](https://miro.medium.com/max/700/1*XthdcSKfjQrD9gJymQLW0w.png)
+- Separation of Concerns. That is to isolate one layer of code from another layer in such a way that changes in one layer do not affect the other layer.
+- A simplified diagram of the clean architecture above, shows the control flow. The code control moves from outer layers of external framework (eg. DB, HTTP etc) to the inner layers of controllers.
+- The controllers in turn call the underlying Use Cases where the application specific business rules are coded.
+-  Lastly the flow reaches the domain entities where the Enterprise Wide Business rules are coded.
+-  The important thing to notice here is the central position the domain entities occupies. Since Domain Entities, and the Use cases, are the innermost layers containing the actual business rules, it should not be affected by the changes to the outermost layers.
+-  For example, moving to a new Database or UI changes. In plain and simple terms, the inner layers cannot have reference or depend upon outer layers.
+
+
+### Hexagonal Architecture
+- Diagram:
+  ![Hexagonal architecture](https://miro.medium.com/max/700/1*mttewNd9J58udNkP02mZfQ.png)
+- As can be seen from the diagram above, the isolation of Domain (Use Cases and Entities) is achieved through Dependency Inversion.
+- The dependency inversion happens at the input and output ports as shown above. The ports are interfaces with functionalities defined. Use Cases (Service Layer) implement the input ports. The controller actually talks to the input port and has no idea on the service layer and the use case that implements it.
+
+
+### TDD and Domain
+- Since the Domain code is isolated from external frameworks and layers, we can and should cover the code in this layer with Unit Tests and achieve a high-code coverage.
+- Unit test:
+  ```go
+  package domain
+
+  import "testing"
+
+  func TestGetTotalSalary(t *testing.T) {
+  	testCases := []struct {
+  		employee Employee
+  		expected Money
+  	}{
+  		{
+  			Employee{EmployeeID: EmployeeID{1}, Name: EmployeeName{"john", "doe"}, BaseSalary: Money{10.0}, Bonus: Money{1.2}},
+  			Money{11.2},
+  		},
+  	}
+
+  	for _, tc := range testCases {
+  		want := tc.expected
+  		got := tc.employee.CalculateTotalSalary()
+
+  		if want != got {
+  			t.Errorf("Employee get total Salary failed. Wanted %.1f, Got %.1f", want.Amount, got.Amount)
+  		}
+  	}
+  }
+  ```
+- Domain:
+  ```go
+  package domain
+
+  type Employee struct {
+  	EmployeeID EmployeeID   `json:"employeeID"`
+  	Name       EmployeeName `json:"employeeName"`
+  	BaseSalary Money        `json:"baseSalary"`
+  	Bonus      Money        `json:"bonus"`
+  }
+
+  func (e Employee) CalculateTotalSalary() Money {
+  	return e.BaseSalary.Add(e.Bonus)
+  }
+  ```
+
+### TDD and Application
+- Sample test:
+  ```go
+  func TestGetEmployeeDetails(t *testing.T) {
+  	inputID := in.EmployeeQueryID{ID: 1}
+  	service := GetEmployeeDetailsService{LoadEmployeeDataPort: MockLoadEmployeeDataPort{}}
+
+  	want := MockLoadEmployeeDataPort{}.GetEmployeeDataFromPersistence(domain.EmployeeID(inputID))
+
+  	got := service.GetEmployeeDetails(inputID)
+
+  	if !reflect.DeepEqual(want, got) {
+  		t.Errorf("Get Employee Details failed. Wanted : %v, Got %v", want, got)
+  	}
+  }
+  ```
+- Application:
+  ```go
+  package service
+
+  import (
+  	"github.com/rubinthomasdev/go-employee/employee/application/port/in"
+  	"github.com/rubinthomasdev/go-employee/employee/application/port/out"
+  	"github.com/rubinthomasdev/go-employee/employee/domain"
+  )
+
+  type GetEmployeeDetailsService struct {
+  	LoadEmployeeDataPort out.LoadEmployeeDataPort
+  }
+
+  func (g GetEmployeeDetailsService) GetEmployeeDetails(inputID in.EmployeeQueryID) domain.Employee {
+  	return g.LoadEmployeeDataPort.GetEmployeeDataFromPersistence(domain.EmployeeID{ID: inputID.ID})
+  }
+
+  func (g GetEmployeeDetailsService) GetAllEmployees() []domain.Employee {
+  	return g.LoadEmployeeDataPort.GetAllEmployees()
+  }
+  ```
+- Interface:
+  ```go
+  package in
+
+  import "github.com/rubinthomasdev/go-employee/employee/domain"
+
+  type GetEmployeeDetailsQuery interface {
+  	GetEmployeeDetails(id EmployeeQueryID) domain.Employee
+  	GetAllEmployees() []domain.Employee
+  }
+  ```
+
+
+### Integration Tests and Adapters
+- Adapters are of two kinds : Driver Adapters (Trigger Flow Control into the inner Domain layer)and Driven Adapters (These are triggered by, usually by the inner layers).
+- For example, in case of web controllers we might want to test if the underlying service is indeed getting triggered and a proper response is being sent.
+- Similarly, in case of DB, we want to actually hit the DB and see if the interactions are working. I have used docker compose to start a postgres container for PersistenceAdapter Integration testing.
+
+
+### Wire it all up
+- Example:
+  ```go
+  package main
+
+  import (
+  	"log"
+  	"net/http"
+
+  	"github.com/rubinthomasdev/go-employee/employee/adapter/in/web"
+  	inmemdb "github.com/rubinthomasdev/go-employee/employee/adapter/out/db/inMemDB"
+  	"github.com/rubinthomasdev/go-employee/employee/adapter/out/persistence"
+  	"github.com/rubinthomasdev/go-employee/employee/application/service"
+  )
+
+  func main() {
+
+  	// create DB
+  	inMemDB := inmemdb.InMemDB{}
+
+  	// create repo
+  	getEmpRepo := inmemdb.InMemRepository{Db: &inMemDB}
+  	getEmpRepo.Initialize()
+
+  	// create adapter
+  	getEmpAdapter := persistence.EmployeePersistenceAdapter{EmployeeRepo: getEmpRepo, Mapper: persistence.EmployeeDataMapper{}}
+
+  	// create service
+  	getEmpSvc := service.GetEmployeeDetailsService{LoadEmployeeDataPort: getEmpAdapter}
+
+  	// create handler
+  	getEmpHandler := web.GetEmployeeDataHandler{GetEmployeeDataUseCase: getEmpSvc}
+
+  	//http handler registration
+  	http.HandleFunc("/api/v1/employees/", getEmpHandler.GetEmployeeDetails)
+
+  	//start the server
+  	log.Fatal(http.ListenAndServe(":8080", nil))
+  }
+  ```
+
+
+</br>
+
+---
+
 ## References
 - https://www.youtube.com/watch?v=oL6JBUk6tj0
 - https://tutorialedge.net/golang/go-project-structure-best-practices/
 - https://www.wolfe.id.au/2020/03/10/how-do-i-structure-my-go-project/
 - https://medium.com/@benbjohnson/structuring-applications-in-go-3b04be4ff091
 - https://levelup.gitconnected.com/a-practical-approach-to-structuring-go-applications-7f77d7f9c189 (UNREAD)
+- https://rubinthomasdev.medium.com/clean-architecture-in-go-e811f233cc04

@@ -5,6 +5,7 @@
 ## List of Contents:
 ### 1. [Don’t just check errors, handle them gracefully](#content-1)
 ### 2. [Error handling and Go](#content-2)
+### 3. [REST API Error Handling in Go: Behavioral Type Assertion](#content-3)
 
 
 </br>
@@ -341,7 +342,265 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 ---
 
+## [REST API Error Handling in Go: Behavioral Type Assertion](https://medium.com/@ozdemir.zynl/rest-api-error-handling-in-go-behavioral-type-assertion-509d93636afd) <span id="content-3"></span>
+
+### Introduction
+- Robust Go applications should deal with errors gracefully.
+
+### General guidelines
+- Always check errors. Never ignore them unless you have a very, very good reason.
+- Always log error details somewhere. Errors are the most valuable information we have, to fix bugs, potential failures and performance issues.
+- Add breadcrumbs to error logs, such as Client IP, request headers/body, user information/events. The more data you have, the easier it is to debug the problem.
+- Handle errors only once. Wrap them with additional context and return to caller function if necessary. It is much more maintainable to handle (taking an action on error such as logging) them in a specific exit point/middleware.
+- Differentiate client and server errors. Don’t overthink and come up with hundreds of different error types. Keep it simple. It is almost always enough to have just two generic types: Client Errors (4xx), which means something was probably wrong with the request data and can be corrected by the client. Server Errors (5xx), are unexpected errors and they usually point out that there are some bugs needs to be fixed in the code.
+- Use HTTP response status codes to indicate something went wrong (400 Bad Request, 404 Not Found…). Although there are different status codes you can use for different situations, they are usually not enough to describe the error on their own. It is best to add more context to the response body.
+- Define a good error response structure from the beginning. Whether it is a simple JSON response with only detail and status or a complex one with domain , type , track_id , title , helpUrl ; stick with it. Try not to have different structures on different endpoints. Be consistent as much as possible. You can follow RFC7807.
+- Make your Client Error messages human readable. Use code to identify errors, messages are for users. Don’t scare the user off with complex error messages, they are best to be descriptive and easy to grasp.
+- Don’t share the details/stack trace of Server Errors with the client. They might contain your code logic and secrets. Log them on a secure platform with a unique id and return this id to the client. So that you can find relevant records/metrics easily when a customer contacts you with this trace id.
+- Document your errors both for developers and users. Try to be as descriptive as possible with error details. It is better to suggest possible reasons/solutions for users in the documentation.
+
+
+### Some background — Errors in Go
+- By convention, errors are the last return value from functions, that implements the built-in interface error:
+  ```go
+  type error interface {
+      Error() string
+  }
+  ```
+- Custom error:
+  ```go
+  type CustomError string
+  func (err CustomError) Error() string {
+      return string(err)
+  }
+  ```
+- Explicitly check errors:
+  ```go
+  f, err := os.Open(filename)
+  if err != nil {
+      // Handle the error ...
+  }
+  ```
+
+
+### Handling errors in a sample Go REST API project
+- Example:
+  ```go
+  package main
+
+  import (
+  	"encoding/json"
+  	"fmt"
+  	"io/ioutil"
+  	"log"
+  	"net/http"
+  )
+
+  type loginSchema struct {
+  	Username string `json:"username"`
+  	Password string `json:"password"`
+  }
+
+  func loginUser(username string, password string) (bool, error) {...}
+
+  func loginHandler(w http.ResponseWriter, r *http.Request) {
+  	if r.Method != http.MethodPost {
+  		w.WriteHeader(405) // Return 405 Method Not Allowed.
+  		return
+  	}
+  	// Read request body.
+  	body, err := ioutil.ReadAll(r.Body)
+  	if err != nil {
+  		log.Printf("Body read error, %v", err)
+  		w.WriteHeader(500) // Return 500 Internal Server Error.
+  		return
+  	}
+
+  	// Parse body as json.
+  	var schema loginSchema
+  	if err = json.Unmarshal(body, &schema); err != nil {
+  		log.Printf("Body parse error, %v", err)
+  		w.WriteHeader(400) // Return 400 Bad Request.
+  		return
+  	}
+
+  	ok, err := loginUser(schema.Username, schema.Password)
+  	if err != nil {
+  		log.Printf("Login user DB error, %v", err)
+  		w.WriteHeader(500) // Return 500 Internal Server Error.
+  		return
+  	}
+
+  	if !ok {
+  		log.Printf("Unauthorized access for user: %v", schema.Username)
+  		w.WriteHeader(401) // Wrong password or username, Return 401.
+  		return
+  	}
+  	w.WriteHeader(200) // Successfully logged in.
+  }
+
+  func main() {
+  	http.HandleFunc("/login/", loginHandler)
+  	log.Fatal(http.ListenAndServe(":8080", nil))
+  }
+  ```
+- Rewriting the implemenation:
+  ![New](https://miro.medium.com/max/700/1*bkPy-jPUV5F5j9w7ECy5UA.png)
+- Remember that we want to have two different main error types: Client Error for 4xx errors and Server Error (or Internal Error) for 5xx. We can declare interfaces based on the behavior we expect from these two types and use type assertion on rootHandler to make some decisions about the error.
+- Client erro:
+  ```go
+  // ClientError is an error whose details to be shared with client.
+  type ClientError interface {
+  	Error() string
+  	// ResponseBody returns response body.
+  	ResponseBody() ([]byte, error)
+  	// ResponseHeaders returns http status code and headers.
+  	ResponseHeaders() (int, map[string]string)
+  }
+  ```
+- Explanation for above:
+  - `ResponseBody() ([]byte, error)` : Returns JSON response body of the error (title, message, error code…) in bytes. (*Getting response body as bytes from one method is not the best solution, see Further Improvements section.)
+  - `ResponseHeaders() (int, map[string]string)` : Returns HTTP status code (4xx, 5xx) and headers (content type, no-cache…) of response.
+  - `Error()` string , this is necessary to make every ClientError and error at the same time.
+- Example:
+  ```go
+  // HTTPError implements ClientError interface.
+  type HTTPError struct {
+  	Cause  error  `json:"-"`
+  	Detail string `json:"detail"`
+  	Status int    `json:"-"`
+  }
+
+  func (e *HTTPError) Error() string {
+  	if e.Cause == nil {
+  		return e.Detail
+  	}
+  	return e.Detail + " : " + e.Cause.Error()
+  }
+
+  // ResponseBody returns JSON response body.
+  func (e *HTTPError) ResponseBody() ([]byte, error) {
+  	body, err := json.Marshal(e)
+  	if err != nil {
+  		return nil, fmt.Errorf("Error while parsing response body: %v", err)
+  	}
+  	return body, nil
+  }
+
+  // ResponseHeaders returns http status code and headers.
+  func (e *HTTPError) ResponseHeaders() (int, map[string]string) {
+  	return e.Status, map[string]string{
+  		"Content-Type": "application/json; charset=utf-8",
+  	}
+  }
+
+  func NewHTTPError(err error, status int, detail string) error {
+  	return &HTTPError{
+  		Cause:  err,
+  		Detail: detail,
+  		Status: status,
+  	}
+  }
+  ```
+- HTTPError has all the information we need to log the error and return a proper HTTP response to the client:
+  - Cause : Original error (unmarshall errors, network errors…) which caused this HTTP error, set it to nil if there isn’t any.
+  - Detail : message to return in JSON response. Ex: { "detail": "Wrong password" } .
+  - Status : HTTP response status code. Ex: 400, 401, 405…
+- The final version:
+  ```go
+  package main
+
+  import (
+  	"encoding/json"
+  	"fmt"
+  	"io/ioutil"
+  	"log"
+  	"net/http"
+  )
+
+  type loginSchema struct {
+  	Username string `json:"username"`
+  	Password string `json:"password"`
+  }
+
+  // Return `true`, nil if given user and password exists in database.
+  func loginUser(username string, password string) (bool, error) {...}
+
+  // Use as a wrapper around the handler functions.
+  type rootHandler func(http.ResponseWriter, *http.Request) error
+
+  func loginHandler(w http.ResponseWriter, r *http.Request) error {
+  	if r.Method != http.MethodPost {
+  		return NewHTTPError(nil, 405, "Method not allowed.")
+  	}
+
+  	body, err := ioutil.ReadAll(r.Body) // Read request body.
+  	if err != nil {
+  		return fmt.Errorf("Request body read error : %v", err)
+  	}
+
+  	// Parse body as json.
+  	var schema loginSchema
+  	if err = json.Unmarshal(body, &schema); err != nil {
+  		return NewHTTPError(err, 400, "Bad request : invalid JSON.")
+  	}
+
+  	ok, err := loginUser(schema.Username, schema.Password)
+  	if err != nil {
+  		return fmt.Errorf("loginUser DB error : %v", err)
+  	}
+
+  	if !ok { // Authentication failed.
+  		return NewHTTPError(nil, 401, "Wrong password or username.")
+  	}
+  	w.WriteHeader(200) // Successfully authenticated. Return access token?
+  	return nil
+  }
+
+  // rootHandler implements http.Handler interface.
+  func (fn rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+  	err := fn(w, r) // Call handler function
+  	if err == nil {
+  		return
+  	}
+  	// This is where our error handling logic starts.
+  	log.Printf("An error accured: %v", err) // Log the error.
+
+  	clientError, ok := err.(ClientError) // Check if it is a ClientError.
+  	if !ok {
+  		// If the error is not ClientError, assume that it is ServerError.
+  		w.WriteHeader(500) // return 500 Internal Server Error.
+  		return
+  	}
+
+  	body, err := clientError.ResponseBody() // Try to get response body of ClientError.
+  	if err != nil {
+  		log.Printf("An error accured: %v", err)
+  		w.WriteHeader(500)
+  		return
+  	}
+  	status, headers := clientError.ResponseHeaders() // Get http status code and headers.
+  	for k, v := range headers {
+  		w.Header().Set(k, v)
+  	}
+  	w.WriteHeader(status)
+  	w.Write(body)
+  }
+
+  func main() {
+  	// Notice rootHandler.
+  	http.Handle("/login/", rootHandler(loginHandler))
+  	log.Fatal(http.ListenAndServe(":8080", nil))
+  }
+  ```
+
+
+</br>
+
+---
+
 ## References:
 - https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully
 - https://www.youtube.com/watch?v=lsBF58Q-DnY
 - https://blog.golang.org/error-handling-and-go
+- https://medium.com/@ozdemir.zynl/rest-api-error-handling-in-go-behavioral-type-assertion-509d93636afd
