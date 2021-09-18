@@ -27,17 +27,18 @@ func TestCalculate(t *testing.T) {
 		n        int
 		expected int
 	}{
-		{ 1, 3},
-		{ 2, 4},
-		{ 3, 5},
-		{ 4, 6},
-		{ 5, 7},
+		{1, 3},
+		{2, 4},
+		{3, 5},
+		{4, 6},
+		{5, 7},
 	}
 
 	teardownTestCase := setupTestCase(t)
 	defer teardownTestCase(t)
 
 	for _, tc := range cases {
+		fmt.Println("here")
 		t.Run(fmt.Sprintf("running test when n=%d", tc.n), func(t *testing.T) {
 			teardownSubTest := setupSubTest(t)
 			defer teardownSubTest(t)
@@ -51,11 +52,7 @@ func TestCalculate(t *testing.T) {
 }
 
 func BenchmarkCalculate(b *testing.B) {
-	i++
-	teardown := setupTestCase(b)
-	defer teardown(b)
 	for n := 0; n < b.N; n++ {
 		Calculate(1)
 	}
-	fmt.Println("i", i)
 }
