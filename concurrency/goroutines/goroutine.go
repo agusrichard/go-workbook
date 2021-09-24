@@ -40,6 +40,17 @@ func printer(c <-chan string) {
 	}
 }
 
+func hello(quit <-chan struct{}) {
+	for {
+		select {
+		case <-quit:
+			return
+		default:
+			fmt.Println("Hello")
+		}
+	}
+}
+
 func main() {
 	fmt.Println("Running")
 	defer func() {
@@ -56,6 +67,11 @@ func main() {
 	go pinger(c)
 	go ponger(c)
 	go printer(c)
+
+	quit := make(chan struct{})
+	go hello(quit)
+	time.Sleep(1 * time.Second)
+	quit <- struct{}{}
 
 	var input string
 	fmt.Scanln(&input)
