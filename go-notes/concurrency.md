@@ -9,6 +9,7 @@
 ### 4. [Go WaitGroup Tutorial](#content-4)
 ### 5. [Go Mutex Tutorial](#content-5)
 ### 6. [Deep dive on goroutine leaks and best practices to avoid them](#content-6)
+### 7. [Applying Modern Go Concurrency Patterns to Data Pipelines](#content-7)
 
 
 </br>
@@ -831,6 +832,799 @@
 </br>
 
 ---
+
+
+## [Applying Modern Go Concurrency Patterns to Data Pipelines](https://medium.com/amboss/applying-modern-go-concurrency-patterns-to-data-pipelines-b3b5327908d4) <span id="content-7"></span>
+
+### A Simple Pipeline
+- To kick things off, we will implement a simple pair of producer and consumer.
+- The producer goes over a list of words and sends them to a channel, while the consumer is receiving values from that channel and printing them to the console.
+  ```go
+  package main
+
+  import (
+    "log"
+  )
+
+  func producer(strings []string) (<-chan string, error) {
+    outChannel := make(chan string)
+
+    for _, s := range strings {
+      outChannel <- s
+    }
+
+    return outChannel, nil
+  }
+
+  func sink(values <-chan string) {
+    for value := range values {
+      log.Println(value)
+    }
+  }
+
+  func main() {
+    source := []string{"foo", "bar", "bax"}
+
+    outputChannel, err := producer(source)
+    if err != nil {
+      log.Fatal(err)
+    }
+
+    sink(outputChannel)
+  }
+  ```
+- The channel returned by producer is not buffered, meaning you can only send values to the channel if someone is receiving values on the other end.
+- You can easily fix this by either making the channel buffered, in which case the deadlock will occur once the buffer is full, or by running the producer in a Go routine.
+  ```go
+  diff --git a/main.go b/main.go
+  index 92bcd33..5c20c9f 100644
+  --- a/main.go
+  +++ b/main.go
+  @@ -7,9 +7,12 @@ import (
+  func producer(strings []string) (<-chan string, error) {
+    outChannel := make(chan string)
+  
+  -	for _, s := range strings {
+  -		outChannel <- s
+  -	}
+  +	go func() {
+  +
+  +		for _, s := range strings {
+  +			outChannel <- s
+  +		}
+  +	}()
+  
+    return outChannel, nil
+  }
+  ```
+- This time the deadlock happens because outChannel is never closed, and therefore our sink will be waiting for new values until the end of time. The solution is simple: close outChannel!
+- Whenever you write concurrent Go code, you should have a strategy for closing channels that you apply consistently throughout your program. One good strategy, which is mentioned in the linked blog post, is that whoever creates the channel is also in charge of closing it. This makes it easy to avoid sending to a closed channel, which would result in panic.
+  ```go
+  diff --git a/main.go b/main.go
+  index 5c20c9f..638af00 100644
+  --- a/main.go
+  +++ b/main.go
+  @@ -8,7 +8,7 @@ func producer(strings []string) (<-chan string, error) {
+    outChannel := make(chan string)
+  
+    go func() {
+  -
+  +		defer close(outChannel)
+      for _, s := range strings {
+        outChannel <- s
+      }
+  ```
+- The complete code:
+  ```go
+  package main
+
+  import "log"
+
+  func producer(strings []string) (<-chan string, error) {
+    outChannel := make(chan string)
+    go func() {
+      defer close(outChannel)
+      for _, s := range strings {
+        outChannel <- s
+      }
+    }()
+    return outChannel, nil
+  }
+
+  func sink(values <- chan string) {
+    for value := range values {
+      log.Println(value)
+    }
+  }
+
+  func main() {
+    source := []string{"one", "two", "three"}
+
+    outputChannel, err := producer(source)
+    if err != nil {
+      log.Println(err)
+    }
+
+    sink(outputChannel)
+    log.Println("here")
+  }
+  ```
+
+### Graceful Shutdown With Context
+- Especially in Go web development it’s common to thread a context value through all of your long running functions, so that you can cancel those functions gracefully and perform cleanup if necessary.
+- Introducing artificial delay:
+  ```go
+  diff --git a/main.go b/main.go
+  index 638af00..af15140 100644
+  --- a/main.go
+  +++ b/main.go
+  @@ -2,6 +2,7 @@ package main
+  
+  import (
+    "log"
+  +	"time"
+  )
+  
+  func producer(strings []string) (<-chan string, error) {
+  @@ -10,6 +11,7 @@ func producer(strings []string) (<-chan string, error) {
+    go func() {
+      defer close(outChannel)
+      for _, s := range strings {
+  +			time.Sleep(time.Second * 3)
+        outChannel <- s
+      }
+    }()
+  ```
+- Add context to our pipeline:
+  ```go
+  diff --git a/main.go b/main.go
+  index af15140..ca2f108 100644
+  --- a/main.go
+  +++ b/main.go
+  @@ -1,37 +1,60 @@
+  package main
+  
+  import (
+  +	"context"
+    "log"
+    "time"
+  )
+  
+  -func producer(strings []string) (<-chan string, error) {
+  +func producer(ctx context.Context, strings []string) (<-chan string, error) {
+    outChannel := make(chan string)
+  
+    go func() {
+      defer close(outChannel)
+  +
+      for _, s := range strings {
+        time.Sleep(time.Second * 3)
+  -			outChannel <- s
+  +			select {
+  +			case <-ctx.Done():
+  +				return
+  +			default:
+  +				outChannel <- s
+  +			}
+      }
+    }()
+  
+    return outChannel, nil
+  }
+  
+  -func sink(values <-chan string) {
+  -	for value := range values {
+  -		log.Println(value)
+  +func sink(ctx context.Context, values <-chan string) {
+  +	for {
+  +		select {
+  +		case <-ctx.Done():
+  +			log.Print(ctx.Err().Error())
+  +			return
+  +		case val, ok := <-values:
+  +			if ok {
+  +				log.Println(val)
+  +			}
+  +		}
+    }
+  }
+  
+  func main() {
+    source := []string{"foo", "bar", "bax"}
+  
+  -	outputChannel, err := producer(source)
+  +	ctx, cancel := context.WithCancel(context.Background())
+  +	defer cancel()
+  +
+  +	go func() {
+  +		time.Sleep(time.Second * 5)
+  +		cancel()
+  +	}()
+  +
+  +	outputChannel, err := producer(ctx, source)
+    if err != nil {
+      log.Fatal(err)
+    }
+  
+  -	sink(outputChannel)
+  +	sink(ctx, outputChannel)
+  }
+  ```
+- We start by initializing a background context that can be canceled.
+- Notice the deferred cancel call on the very next line. It's usually a good idea to place these deferred calls right on the next line so it's easy to see, at a glance, when cleanup happens.
+- The context is then passed to both producer and consumer. In both cases we replace the body of our loop with a select statement.
+- This statement will try each branch but it won't block.
+- This means that inside producer it'll first try to receive a value from the channel returned by ctx.Done(). If there is no value, it will try the next branch instead of blocking indefinitely, which is the same code as before.
+- The loop will therefore traverse the list and push each value into the channel, unless a cancellation signal is sent across the background context channel.
+- In that case the function returns and runs its deferred calls, which ultimately closes the outChannel.
+  ```go
+  diff --git a/main.go b/main.go
+  index ca2f108..1e32bee 100644
+  --- a/main.go
+  +++ b/main.go
+  @@ -33,6 +33,7 @@ func sink(ctx context.Context, values <-chan string) {
+        log.Print(ctx.Err().Error())
+        return
+      case val, ok := <-values:
+  +			log.Print(val)
+        if ok {
+          log.Println(val)
+        }
+  @@ -46,10 +47,10 @@ func main() {
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+  
+  -	go func() {
+  -		time.Sleep(time.Second * 5)
+  -		cancel()
+  -	}()
+  +	// go func() {
+  +	// 	time.Sleep(time.Second * 5)
+  +	// 	cancel()
+  +	// }()
+  
+    outputChannel, err := producer(ctx, source)
+    if err != nil {
+  ```
+- A receive operation on a closed channel can always proceed immediately, yielding the element type’s zero value after any previously sent values have been received.
+- The value of ok is true if the value received was delivered by a successful send operation to the channel, or false if it is a zero value generated because the channel is closed and empty.
+- Imagine that your pipeline receives a cancelation signal from an external service, but not in every run. This means that the bug will appear in some, but not all runs, and that makes debugging quite challenging.
+- Addtional else that solves the problem:
+  ```go
+  diff --git a/main.go b/main.go
+  index 1e32bee..81d00af 100644
+  --- a/main.go
+  +++ b/main.go
+  @@ -33,9 +33,10 @@ func sink(ctx context.Context, values <-chan string) {
+        log.Print(ctx.Err().Error())
+        return
+      case val, ok := <-values:
+  -			log.Print(val)
+        if ok {
+          log.Println(val)
+  +			} else {
+  +				return
+        }
+      }
+    }
+  ```
+- The complete code:
+  ```go
+  package main
+
+  import (
+    "log"
+    "time"
+    "context"
+  )
+
+  func producer(ctx context.Context, strings []string) (<-chan string, error) {
+    outChannel := make(chan string)
+    go func() {
+      defer close(outChannel)
+      for _, s := range strings {
+        time.Sleep(1 * time.Second)
+        select {
+        case <- ctx.Done():
+          return
+        default:
+          outChannel <- s
+        }
+      }
+    }()
+    return outChannel, nil
+  }
+
+  func sink(ctx context.Context, values <- chan string) {
+    for {
+      select {
+      case <- ctx.Done():
+        log.Println(ctx.Err().Error())
+        return
+      case val, ok := <- values:
+        if ok {
+          log.Println(val)
+        } else {
+          log.Println("val", val)
+          log.Println("ok", ok)
+          return
+        }
+      }
+    }
+  }
+
+  func main() {
+    source := []string{"one", "two", "three"}
+
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
+    // go func() {
+    //   time.Sleep(5 * time.Second)
+    //   cancel()
+    // }()
+
+    outputChannel, err := producer(ctx, source)
+    if err != nil {
+      log.Fatal(err)
+    }
+
+    sink(ctx, outputChannel)
+  }
+  ```
+
+### Adding Parallelism with Fan-Out and Fan-In
+- Going straight from producer to consumer isn’t really a pipeline, so let’s add the second stage that transforms all strings to lower case. We can pretty much copy/paste the producer stage and add strings.ToLower. But that's not very educational, so we'll use this opportunity to add more parallelism to our program.
+- Remember, sending values to a closed channel is a panic.
+- It’s therefore much simpler (but not necessarily easier) to have every spawned Go routine create and close its own output channel, as mentioned earlier. 
+- The downside is that you need extra code to merge those channels together. But you’ll sleep much better knowing that your program is far less likely to panic.
+- The idea here is to run a loop that spawns as many Go routines as we have CPU cores available.
+- In each loop iteration, we create a Go routine that runs the same pipeline step function.
+- That step function returns a channel, which we append to a variable that will contain all channels thus created.
+- Finally, we merge all of those channels together and pass the resulting single channel to sink.
+- The implementation of the channel merging function is copied more or less verbatim from various existing blog posts out there. The number one disadvantage of this approach is that you’ll have to create an almost exact copy of this function for every type your pipeline has to process.
+- The complete code:
+  ```go
+  package main
+
+  import (
+    "context"
+    "log"
+    "runtime"
+    "strings"
+    "sync"
+    "time"
+  )
+
+  func producer(ctx context.Context, strings []string) (<-chan string, error) {
+    outChannel := make(chan string)
+
+    go func() {
+      defer close(outChannel)
+
+      for _, s := range strings {
+        select {
+        case <-ctx.Done():
+          return
+        default:
+          outChannel <- s
+        }
+      }
+    }()
+
+    return outChannel, nil
+  }
+
+  func transformToLower(ctx context.Context, values <-chan string) (<-chan string, error) {
+    outChannel := make(chan string)
+
+    go func() {
+      defer close(outChannel)
+
+      for s := range values {
+        time.Sleep(time.Second * 3)
+        select {
+        case <-ctx.Done():
+          return
+        default:
+          outChannel <- strings.ToLower(s)
+        }
+      }
+    }()
+
+    return outChannel, nil
+  }
+
+  func transformToTitle(ctx context.Context, values <-chan string) (<-chan string, error) {
+    outChannel := make(chan string)
+
+    go func() {
+      defer close(outChannel)
+
+      for s := range values {
+        time.Sleep(time.Second * 3)
+        select {
+        case <-ctx.Done():
+          return
+        default:
+          outChannel <- strings.ToTitle(s)
+        }
+      }
+    }()
+
+    return outChannel, nil
+  }
+
+  func sink(ctx context.Context, values <-chan string) {
+    for {
+      select {
+      case <-ctx.Done():
+        log.Print(ctx.Err().Error())
+        return
+      case val, ok := <-values:
+        if ok {
+          log.Println(val)
+        } else {
+          return
+        }
+      }
+    }
+  }
+
+  func main() {
+    source := []string{"FOO", "BAR", "BAX"}
+
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
+    outputChannel, err := producer(ctx, source)
+    if err != nil {
+      log.Fatal(err)
+    }
+
+    stage1Channels := []<-chan string{}
+
+    for i := 0; i < runtime.NumCPU(); i++ {
+      lowerCaseChannel, err := transformToLower(ctx, outputChannel)
+      if err != nil {
+        log.Fatal(err)
+      }
+      stage1Channels = append(stage1Channels, lowerCaseChannel)
+    }
+
+    stage1Merged := mergeStringChans(ctx, stage1Channels...)
+    stage2Channels := []<-chan string{}
+
+    for i := 0; i < runtime.NumCPU(); i++ {
+      titleCaseChannel, err := transformToTitle(ctx, stage1Merged)
+      if err != nil {
+        log.Fatal(err)
+      }
+      stage2Channels = append(stage2Channels, titleCaseChannel)
+    }
+
+    stage2Merged := mergeStringChans(ctx, stage2Channels...)
+    sink(ctx, stage2Merged)
+  }
+
+  func mergeStringChans(ctx context.Context, cs ...<-chan string) <-chan string {
+    var wg sync.WaitGroup
+    out := make(chan string)
+
+    output := func(c <-chan string) {
+      defer wg.Done()
+      for n := range c {
+        select {
+        case out <- n:
+        case <-ctx.Done():
+          return
+        }
+      }
+    }
+
+    wg.Add(len(cs))
+    for _, c := range cs {
+      go output(c)
+    }
+
+    go func() {
+      wg.Wait()
+      close(out)
+    }()
+
+    return out
+  }
+
+  ```
+
+### Error Handling
+- The most common way of propagating errors that I’ve seen is through a separate error channel.
+- Unlike the value channels that connect pipeline stages, the error channels are not passed to downstream stages.
+- Instead we gather up all error channels, merge them and pass them to sink. If we receive any error in any channel we cancel the context, thereby closing all channels that are still active, and we log the error.
+  ```go
+  diff --git a/main.go b/main.go
+  index 33a1a3b..812956c 100644
+  --- a/main.go
+  +++ b/main.go
+  @@ -2,6 +2,7 @@ package main
+  
+  import (
+    "context"
+  +	"errors"
+    "log"
+    "runtime"
+    "strings"
+  @@ -28,11 +29,13 @@ func producer(ctx context.Context, strings []string) (<-chan string, error) {
+    return outChannel, nil
+  }
+  
+  -func transformToLower(ctx context.Context, values <-chan string) (<-chan string, error) {
+  +func transformToLower(ctx context.Context, values <-chan string) (<-chan string, <-chan error, error) {
+    outChannel := make(chan string)
+  +	errorChannel := make(chan error)
+  
+    go func() {
+      defer close(outChannel)
+  +		defer close(errorChannel)
+  
+      for s := range values {
+        time.Sleep(time.Second * 3)
+  @@ -45,14 +48,16 @@ func transformToLower(ctx context.Context, values <-chan string) (<-chan string,
+      }
+    }()
+  
+  -	return outChannel, nil
+  +	return outChannel, errorChannel, nil
+  }
+  
+  -func transformToTitle(ctx context.Context, values <-chan string) (<-chan string, error) {
+  +func transformToTitle(ctx context.Context, values <-chan string) (<-chan string, <-chan error, error) {
+    outChannel := make(chan string)
+  +	errorChannel := make(chan error)
+  
+    go func() {
+      defer close(outChannel)
+  +		defer close(errorChannel)
+  
+      for s := range values {
+        time.Sleep(time.Second * 3)
+  @@ -60,20 +65,29 @@ func transformToTitle(ctx context.Context, values <-chan string) (<-chan string,
+        case <-ctx.Done():
+          return
+        default:
+  -				outChannel <- strings.ToTitle(s)
+  +				if s == "foo" {
+  +					errorChannel <- errors.New("error in transformToTitle")
+  +				} else {
+  +					outChannel <- strings.ToTitle(s)
+  +				}
+        }
+      }
+    }()
+  
+  -	return outChannel, nil
+  +	return outChannel, errorChannel, nil
+  }
+  
+  -func sink(ctx context.Context, values <-chan string) {
+  +func sink(ctx context.Context, cancel context.CancelFunc,values <-chan string, errors <-chan error) {
+    for {
+      select {
+      case <-ctx.Done():
+        log.Print(ctx.Err().Error())
+        return
+  +		case err, ok := <-errors:
+  +			if ok {
+  +       cancel()
+  +				log.Print(err.Error())
+  +			}
+      case val, ok := <-values:
+        if ok {
+          log.Println(val)
+  @@ -96,28 +110,32 @@ func main() {
+    }
+  
+    stage1Channels := []<-chan string{}
+  +	errors := []<-chan error{}
+  
+    for i := 0; i < runtime.NumCPU(); i++ {
+  -		lowerCaseChannel, err := transformToLower(ctx, outputChannel)
+  +		lowerCaseChannel, lowerCaseErrors, err := transformToLower(ctx, outputChannel)
+      if err != nil {
+        log.Fatal(err)
+      }
+      stage1Channels = append(stage1Channels, lowerCaseChannel)
+  +		errors = append(errors, lowerCaseErrors)
+    }
+  
+    stage1Merged := mergeStringChans(ctx, stage1Channels...)
+    stage2Channels := []<-chan string{}
+  
+    for i := 0; i < runtime.NumCPU(); i++ {
+  -		titleCaseChannel, err := transformToTitle(ctx, stage1Merged)
+  +		titleCaseChannel, titleCaseErrors, err := transformToTitle(ctx, stage1Merged)
+      if err != nil {
+        log.Fatal(err)
+      }
+      stage2Channels = append(stage2Channels, titleCaseChannel)
+  +		errors = append(errors, titleCaseErrors)
+    }
+  
+    stage2Merged := mergeStringChans(ctx, stage2Channels...)
+  -	sink(ctx, stage2Merged)
+  +	errorsMerged := mergeErrorChans(ctx, errors...)
+  +	sink(ctx, cancel, stage2Merged, errorsMerged)
+  }
+  
+  func mergeStringChans(ctx context.Context, cs ...<-chan string) <-chan string {
+  @@ -147,3 +165,31 @@ func mergeStringChans(ctx context.Context, cs ...<-chan string) <-chan string {
+  
+    return out
+  }
+  +
+  +func mergeErrorChans(ctx context.Context, cs ...<-chan error) <-chan error {
+  +	var wg sync.WaitGroup
+  +	out := make(chan error)
+  +
+  +	output := func(c <-chan error) {
+  +		defer wg.Done()
+  +		for n := range c {
+  +			select {
+  +			case out <- n:
+  +			case <-ctx.Done():
+  +				return
+  +			}
+  +		}
+  +	}
+  +
+  +	wg.Add(len(cs))
+  +	for _, c := range cs {
+  +		go output(c)
+  +	}
+  +
+  +	go func() {
+  +		wg.Wait()
+  +		close(out)
+  +	}()
+  +
+  +	return out
+  +}
+  ```
+
+### Removing Boilerplate With Generics
+- One unfortunate consequence of merging channels is that you’ll need a separate version of the merge function for every type that your pipeline deals with. This is precisely where generics can help!
+  ```go
+  diff --git a/main.go b/main.go
+  index b850a16..6745855 100644
+  --- a/main.go
+  +++ b/main.go
+  @@ -121,7 +121,7 @@ func main() {
+      errors = append(errors, lowerCaseErrors)
+    }
+  
+  -	stage1Merged := mergeStringChans(ctx, stage1Channels...)
+  +	stage1Merged := mergeChans(ctx, stage1Channels...)
+    stage2Channels := []<-chan string{}
+  
+    for i := 0; i < runtime.NumCPU(); i++ {
+  @@ -133,44 +133,16 @@ func main() {
+      errors = append(errors, titleCaseErrors)
+    }
+  
+  -	stage2Merged := mergeStringChans(ctx, stage2Channels...)
+  -	errorsMerged := mergeErrorChans(ctx, errors...)
+  +	stage2Merged := mergeChans(ctx, stage2Channels...)
+  +	errorsMerged := mergeChans(ctx, errors...)
+    sink(ctx, cancel, stage2Merged, errorsMerged)
+  }
+  
+  -func mergeStringChans(ctx context.Context, cs ...<-chan string) <-chan string {
+  +func mergeChans[T any](ctx context.Context, cs ...<-chan T) <-chan T {
+    var wg sync.WaitGroup
+  -	out := make(chan string)
+  +	out := make(chan T)
+  
+  -	output := func(c <-chan string) {
+  -		defer wg.Done()
+  -		for n := range c {
+  -			select {
+  -			case out <- n:
+  -			case <-ctx.Done():
+  -				return
+  -			}
+  -		}
+  -	}
+  -
+  -	wg.Add(len(cs))
+  -	for _, c := range cs {
+  -		go output(c)
+  -	}
+  -
+  -	go func() {
+  -		wg.Wait()
+  -		close(out)
+  -	}()
+  -
+  -	return out
+  -}
+  -
+  -func mergeErrorChans(ctx context.Context, cs ...<-chan error) <-chan error {
+  -	var wg sync.WaitGroup
+  -	out := make(chan error)
+  -
+  -	output := func(c <-chan error) {
+  +	output := func(c <-chan T) {
+      defer wg.Done()
+      for n := range c {
+        select {
+  ```
+
+### Maximum Efficiency With Semaphores
+- Another downside of the original program, apart from the code repetition, is that we potentially do more work than necessary. What if our input list only had a single element in it? Then we only need a single Go routine, not NumCPU() Go routines.
+- To limit the number of Go routines to the available work, we need to completely change the loop that creates Go routines. Instead of creating a fixed number of Go routines, we will range over the input channel. For every value we receive from it, we will spawn a Go routine
+- This means that we will only have a single channel per pipeline stage and must therefore pay attention when we close that channel.
+- The second thing to watch out for is that we call sem.Acquire before we start the Go routine. Otherwise, you create a Go routine that will immediately block until sem.Acquire succeeds. That's just wasting memory so we want to avoid this.
+- The third and final piece of the puzzle is the last call to sem.Acquire, where we try to acquire all tokens at once. This effectively waits until we've drained inputChannel and have completed all operations. Only then can we close our two remaining channels so sink knows when to exit. If you comment out close(outputChannel) the program will go through all values but then deadlock.
+  ```go
+  func main() {
+    source := []string{"FOO", "BAR", "BAX"}
+
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
+    inputChannel, err := producer(ctx, source)
+    if err != nil {
+      log.Fatal(err)
+    }
+
+    outputChannel := make(chan string)
+    errorChannel := make(chan error)
+
+    limit := runtime.NumCPU()
+    sem := semaphore.NewWeighted(limit)
+
+    go func() {
+      for s := range inputChannel {
+        select {
+        case <-ctx.Done():
+          break
+        default:
+        }
+
+        if err := sem.Acquire(ctx, 1); err != nil {
+          log.Printf("Failed to acquire semaphore: %v", err)
+          break
+        }
+
+        go func(s string) {
+          defer sem.Release(1)
+          time.Sleep(time.Second * 3)
+
+          result := strings.ToLower(s)
+          outputChannel <- result
+        }(s)
+      }
+
+      if err := sem.Acquire(ctx, limit); err != nil {
+        log.Printf("Failed to acquire semaphore: %v", err)
+      }
+      close(outputChannel)
+      close(errorChannel)
+    }()
+
+    sink(ctx, cancel, outputChannel, errorChannel)
+  }
+  ```
+
+
+
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
+
 ## References:
 - https://www.golang-book.com/books/intro/10
 - https://tutorialedge.net/golang/concurrency-with-golang-goroutines/
@@ -838,3 +1632,4 @@
 - https://tutorialedge.net/golang/go-waitgroup-tutorial/
 - https://tutorialedge.net/golang/go-mutex-tutorial/
 - https://mourya-g9.medium.com/deep-dive-on-goroutine-leaks-and-best-practices-to-avoid-them-a35021383f64
+- https://medium.com/amboss/applying-modern-go-concurrency-patterns-to-data-pipelines-b3b5327908d4
