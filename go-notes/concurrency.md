@@ -8,6 +8,7 @@
 ### 3. [Go Channels Tutorial](#content-3)
 ### 4. [Go WaitGroup Tutorial](#content-4)
 ### 5. [Go Mutex Tutorial](#content-5)
+### 6. [Deep dive on goroutine leaks and best practices to avoid them](#content-6)
 
 
 </br>
@@ -745,9 +746,95 @@
 
 ---
 
+## [Deep dive on goroutine leaks and best practices to avoid them](https://mourya-g9.medium.com/deep-dive-on-goroutine-leaks-and-best-practices-to-avoid-them-a35021383f64) <span id="content-6"></span>
+
+### Introduction
+- Using goroutines and channels in production env without proper context on how they behave can cause some serious effects.
+- Well, we faced one such impact where we had a leakage in goroutines that resulted in the application server bloating over time by consuming abundant CPU & frequent GC pauses affecting the SLA of multiple APIs.
+- A goroutine leak is where the client spawns a goroutine to do some async task and writes some data to a channel once the task is done but
+  - There is no listener consuming from that channel to which the data is being written.
+    ```go
+    func newgoroutine(dataChan chan <dataType>) {
+        data := makeNetworkCall()
+        dataChan <- data
+        return
+    }
+    func main() {
+        dataChan := make(chan <dataType>)
+        go newgoroutine(dataChan)
+        // Some application processing (but forgot to consume data from the channel (dataChan))
+        return 
+    }
+    ```
+  - In the above scenario, the code completes execution succesfully as if there is no issue at all. But what happens here is that, there will be a dangling goroutine that resides in memory eating up the CPU & RAM. 
+  - The major reason for that is because of line 3 where we are writing data into a channel but as per go principles, an unbuffered channel blocks write to channel until consumer consumes the message from that channel.
+  - So in this case the return on line number 4 will never get executed and the newgoroutine function gets stuck throughtout the application lifetime as there is no consumer for this channel.
+  - There is some conditional logic between the goroutine start and channel listener.
+    ```go
+    func newgoroutine(dataChan chan <dataType>) {
+        data := makeNetworkCall()
+        dataChan <- data
+        return
+    }
+    func main() {
+        dataChan := make(chan <dataType>)
+        go newgoroutine(dataChan)
+        // Some application processing 
+        if processingError != nil {
+              return
+        }
+        data := <- dataChan
+        // Do something with data
+        return 
+    }
+    ```
+  - We had a consumer consuming the data from the dataChan but from the time we spawned the goroutine and before we started consuming the data from the channel, there is a ton of application code that resides which can quit the main function on some processing error | DB error | Nil pointer exceptions | Panics due to which the consumer of the data channel never gets executed. 
+  - The forgotten sender
+    ```go
+  func newgoroutine(dataChan chan <dataType>) {
+      // Consume data from dataChan 
+      data := <- dataChan
+      // Do some processing on the data
+      return
+  }
+  func main() {
+      dataChan := make(chan <dataType>)
+      go newgoroutine(dataChan)
+      data, err := makeNetworkCall()
+      if err != nil {
+          return 
+      }
+      dataChan <- data // This piece of code is never executed in error case of networkCall which makes newgoroutine dangling
+      // Do something with data
+      return 
+  }
+    ```
+
+### Approaches
+- Approach -> We identify every error condition from the time we started the goroutine till we consume from the channel where we exit and place a receiver before every return statement just to unblock the spawned goroutine.
+- Pitfall -> We have to find all edge cases manually and in the future, if we have to handle one more error condition, we need to remember what all channels we need to consume data from before returning. Buggy solution.
+- Approach -> Instead of placing a receiver at every error case, why not have a defer function that can receive the data from the channel.
+- Pitfall -> In case of success the data will be read from the channel after processing the static rules. So if we start to receive data from the channel at defer function this blocks the main goroutine in case of success. Faulty solution.
+- The major problem here is we aren’t sure whether the receiver flow will be executed or not due to our application processing. 
+- Well, the simple solution is to create a buffered channel with cap 1. With this, the sender is never blocked to write the data once even if there is no consumer spawned or the spawned consumer code is not reached.
+- Pitfalls -> Absolutely zero. This works exactly like unbuffered channels but provides us an extra capability where sender is not blocked to send the data once and the consumer can consume it at any point and the spawned goroutine won’t be waiting for the consumer.
+
+### The approach to find goroutine leaks
+- When the server starts, disable Garbage Collector using debug.SetGCPercent(-1)
+- Now run every flow in the code where a Go routine is used(Dev Env).
+- At the entry point of each API, print the no of running goroutines before starting & after executing the API
+- Now if a service returns a different count of Goroutines before & after, then there is a leak in that flow.
+
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
 ## References:
 - https://www.golang-book.com/books/intro/10
 - https://tutorialedge.net/golang/concurrency-with-golang-goroutines/
 - https://tutorialedge.net/golang/go-channels-tutorial/
 - https://tutorialedge.net/golang/go-waitgroup-tutorial/
 - https://tutorialedge.net/golang/go-mutex-tutorial/
+- https://mourya-g9.medium.com/deep-dive-on-goroutine-leaks-and-best-practices-to-avoid-them-a35021383f64
