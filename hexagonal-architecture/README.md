@@ -4,7 +4,7 @@
 
 ## List of Contents:
 ### 1. [A Hexagonal Software Architecture Implementation using Golang and MongoDB](#content-1)
-
+### 2. [Hexagonal Architecture in Go](#content-2)
 
 </br>
 
@@ -243,6 +243,293 @@
   }
   ```
 
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
+
+## [Hexagonal Architecture in Go](https://medium.com/@matiasvarela/hexagonal-architecture-in-go-cfd4e436faa3) <span id="content-2"></span>
+
+### Hexagonal Architecture - Core
+- In this architecture, everything is surrounding the core of the application. It is a technology agnostic component that contains all the business logic.
+- In other words, the core shouldn’t be aware of how the application is served or where the the data is actually hold.
+- The core could be viewed as a “box” (represented as a hexagon) capable of resolve all the business logic independently of the infrastructure in which the application is mounted.
+- This approach allow us to test the core in isolation and give us the ability to easily change infrastructure components.
+
+### Hexagonal Architecture - Actors
+- Actors are real world things that want to interact with the core.
+- These things could be humans, databases or even other applications.
+- Actors can be categorized into two groups, depending on who triggers the interaction:
+  - Drivers (or primary) actors, are those who trigger the communication with the core. They do so to invoke a specific service on the core. A human or a CLI (command line interface) are perfect examples of drivers actors.
+  - Driven (or secondary) actors, are those who are expecting the core to be the one who trigger the communication. In this case, is the core who needs something that the actor provides, so it sends a request to the actor and invoke a specific action on it. For example, if the core needs to save data into a MySQL database, then the core trigger the communication to execute an INSERT query on the MySQL client.
+- Notice that the actors and the core “speak” different languages.
+- An external application sends a request over http to perform a core service call (which does not understand what http means).
+- Another example is when the core (which is technology agnostic) wants to save data into a mysql database (which speaks SQL).
+
+### Hexagonal Architecture - Ports
+- In one hand, we have the ports which are interfaces that define how the communication between an actor and the core has to be done.
+- Depending on the actor, the ports has different nature:
+  - Ports for driver actors, define the set of actions that the core provides and expose to the outside. Each action generally correspond with a specific case of use.
+  - Ports for driven actors, define the set of actions that the actor has to implement.
+- Notice that the ports belongs to the core. It is important, due to the core is the one who define which interactions are needed to achieve the business logic goals.
+
+### Hexagonal Architecture - Adapters
+- In the other hand, we have the adapters that are responsible of the transformation between a request from the actor to the core, and vice versa.
+- This is necessary, because as we said earlier the actors and the core “speaks” different languages.
+- An adapter for a driver port, transforms a specific technology request into a call on a core service.
+- An adapter for a driven port, transforms a technology agnostic request from the core into an a specific technology request on the actor.
+
+### Hexagonal Architecture - Dependency Injection
+- After the implementation is done, then it is necessary to connect, somehow, the adapters to the corresponding ports.
+- This could be done when the application starts and it allow us to decide which adapter has to be connected in each port, this is what we call “Dependency injection”.
+- For example, if we want to save data into a mysql database, then we just have to plug an adapter for a mysql database into the corresponding port
+
+### Case of study: MinesWeeper API
+- We are going to build an API for the popular game called Minesweeper.
+- As we mention earlier, in this architecture everything is surrounding the core of the application, therefore, it is important to start by building the business logic.
+- At this point, just forget for a moment where the data actually will be hold or how the application will be served. Just put all your energy implementing and testing the core.
+
+### Case of study: MinesWeeper API - Application structure
+- Directory structure:
+  ```text
+  ├── cmd
+  ├── pkg
+  └── internal
+      ├── core
+      │   ├── domain
+      │   │   ├── game.go
+      │   │   └── board.go
+      │   ├── ports
+      │   │   ├── repositories.go
+      │   │   └── services.go
+      │   └── services
+      │       └── gamesrv
+      │           └── service.go
+      ├── handlers
+      └── repositories
+  ```
+
+### Case of study: MinesWeeper API - Core
+- All the core components (services, domain and ports) will be placed in the directory ./internal/core.
+
+### Case of study: MinesWeeper API - Domain
+- All the domain models will be placed in the directory ./internal/core/domain.
+- It contains the go struct definition of each entity that is part of the domain problem and can be used across the application.
+- Note: not every go struct is a domain model. Just the structs that are involved in the business logic.
+- `domain.go`
+  ```go
+  // ./internal/core/domain/domain.go
+
+  package domain
+
+  type Game struct {
+    ID            string        `json:"id"`
+    Name          string        `json:"name"`
+    State         string        `json:"state"`
+    BoardSettings BoardSettings `json:"board_settings"`
+    Board         Board         `json:"board"`
+  }
+
+  type BoardSettings struct {
+    Size  uint `json:"size"`
+    Bombs uint `json:"bombs"`
+  }
+
+  type Board [][]string
+  ```
+
+### Case of study: MinesWeeper API - Ports
+- It contains the interfaces definition used to communicate with actors.
+- `ports.go`
+  ```go
+  // ./internal/core/ports/ports.go
+
+  package ports
+
+  type GamesRepository interface {
+      Get(id string) (domain.Game, error)
+      Save(domain.Game) error
+  }
+
+  type GamesService interface {
+      Get(id string) (domain.Game, error)
+      Create(name string, size uint, bombs uint) (domain.Game, error)
+      Reveal(id string, row uint, col uint) (domain.Game, error)
+  }
+  ```
+
+### Case of study: MinesWeeper API - Services
+- The services are our entry points to the core and each one of them implements the corresponding port.
+- `service.go`
+  ```go
+  // ./internal/core/services/gamesrv/service.go
+
+  package gamesrv
+
+  type service struct {}
+
+  func New() *service {
+    return &service{}
+  }
+
+  func (srv *service) Get(id string) (domain.Game, error) {
+    return domain.Game{}, nil
+  }
+  ```
+- We know that somehow the game is saved in a storage. Any kind of storage.
+  ```go
+  // ./internal/core/services/gamesrv/service.go
+
+  package gamesrv
+
+  type service struct {
+    gamesRepository ports.GamesRepository
+  }
+
+  func New(gamesRepository ports.GamesRepository) *service {
+    return &service{
+      gamesRepository: gamesRepository,
+    }
+  }
+
+  func (srv *service) Get(id string) (domain.Game, error) {
+    game, err := srv.gamesRepository.Get(id)
+    if err != nil {
+      return domain.Game{}, errors.New("get game from repository has failed")
+    }
+
+    return game, nil
+  }
+  ```
+  ```go
+  // ./internal/core/services/gamesrv/service.go
+
+  package gamesrv
+
+  type service struct {
+    gamesRepository ports.GamesRepository
+    uidGen          uidgen.UIDGen
+  }
+
+  func New(gamesRepository ports.GamesRepository, uidGen uidgen.UIDGen) *service {
+    return &service{
+      gamesRepository: gamesRepository,
+      uidGen:          uidGen,
+    }
+  }
+
+  func (srv *service) Get(id string) (domain.Game, error) {...}
+
+  func (srv *service) Create(name string, size uint, bombs uint) (domain.Game, error) {
+    if bombs >= size*size {
+      return domain.Game{}, errors.New("the number of bombs is invalid")
+    }
+
+    game := domain.NewGame(srv.uidGen.New(), name, size, bombs)
+
+    if err := srv.gamesRepository.Save(game); err != nil {
+      return domain.Game{}, errors.New("create game into repository has failed")
+    }
+
+    return game, nil
+  }
+  ```
+
+### Adapters
+- Now, it’s time to implement the adapters so the application can interact with the actors.
+- Having all the components decoupled from each other give us the advantage to implement and test them in isolation or we can easily parallelize the work with the help of other members of the team.
+
+### Driver adapter
+- All the driver adapters will be placed in packages inside the directory ./internal/handlers.
+- `http.go`
+  ```go
+  // ./internal/handlers/gamehdl/http.go
+
+  package gamehdl
+
+  type HTTPHandler struct {
+    gamesService ports.GamesService
+  }
+
+  func NewHTTPHandler(gamesService ports.GamesService) *HTTPHandler {
+    return &HTTPHandler{
+      gamesService: gamesService,
+    }
+  }
+
+  func (hdl *HTTPHandler) Get(c *gin.Context) {
+    game, err := hdl.gamesService.Get(c.Param("id"))
+    if err != nil {
+      c.AbortWithStatusJSON(500, gin.H{"message": err.Error()})
+      return
+    }
+
+    c.JSON(200, game)
+  }
+  ```
+
+### Driven adapter
+- `memkvs.go`
+  ```go
+  // ./internal/repositories/gamesrepo/memkvs.go
+
+  package gamesrepo
+
+  type memkvs struct {
+    kvs map[string][]byte
+  }
+
+  func NewMemKVS() *memkvs {
+    return &memkvs{kvs: map[string][]byte{}}
+  }
+
+  func (repo *memkvs) Get(id string) (domain.Game, error) {
+    if value, ok := repo.kvs[id]; ok {
+      game := domain.Game{}
+      err := json.Unmarshal(value, &game)
+      if err != nil {
+        return domain.Game{}, errors.New("fail to get value from kvs")
+      }
+
+      return game, nil
+    }
+
+    return domain.Game{}, errors.New("game not found in kvs")
+  }
+  ```
+
+### Serve the application
+- `main.go`
+  ```go
+  // ./cmd/httpserver/main.go
+
+  package main
+
+  func main() {
+    gamesRepository := gamesrepo.NewMemKVS()
+    gamesService := gamesrv.New(gamesRepository, uidgen.New())
+    gamesHandler := gamehdl.NewHTTPHandler(gamesService)
+
+    router := gin.New()
+    router.GET("/games/:id", gamesHandler.Get)
+    router.POST("/games", gamesHandler.Create)
+
+    router.Run(":8080")
+  }
+  ```
+
+### Advantages
+- Separation of concerns: each component (core, adapters, ports, etc) has a well-defined purpose and there is no doubt of their responsibilities.
+- Focus on the business logic: delaying the technical details allows you to focus on what matters at the end, the business logic.
+- Parallelization of work: once the ports are defined, it is easy to parallelize the work across mates. Having several members of the team working in different well-defined and decouple components can reduce the development time considerably.
+- Tests in isolation: each component can be tested in isolation, and more important is that the core is self-tested.
+- Easily change infrastructure: it is really easy to change the infrastructure. You can move from a mysql to an elastic-search database without an impact on the business logic.
+- Self-guided process: the architecture itself guides you on how the development process steps should be taken. Starts from the core, continue with the ports and adapters and finally serve the application.
+
+### Disadvantages
+- Too complex for small or short-term projects: it is important to analyze if this architecture is appropriate for the desired project. For example, if the micro-service has only one specific task it could be overkill. Or if it is short-term project sometimes is better to keep it simple.This architecture is recommended for applications with real business domain problems.
+- Performance overhead: adding extra components trigger extra calls to functions, therefore, in each of them we will be adding a very small overhead. This could be a disadvantage if our service has to be extremely performant.
 
 
 **[⬆ back to top](#list-of-contents)**
@@ -254,3 +541,5 @@
 ## References:
 - https://www.linkedin.com/pulse/hexagonal-software-architecture-implementation-using-golang-ramaboli/
 - https://github.com/alramaboli/hexagonal-architecture
+- https://medium.com/@matiasvarela/hexagonal-architecture-in-go-cfd4e436faa3
+- https://github.com/matiasvarela/minesweeper-hex-arch-sample
