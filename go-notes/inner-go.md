@@ -7,6 +7,7 @@
 ### 2. [What “accept interfaces, return structs” means in Go](#content-2)
 ### 3. [Preemptive Interface Anti-Pattern in Go](#content-3)
 ### 4. [Context in Golang!](#content-4)
+### 5. [Interfaces in Golang](#content-5)
 
 
 </br>
@@ -275,6 +276,129 @@ public class Logic {
   ```
 
 
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
+
+## [Interfaces in Golang](https://medium.com/nerd-for-tech/interfaces-in-golang-f9df59b0b71e) <span id="content-5"></span>
+
+### Why are we not defining interfaces with the type definition like in typical static languages like C++, Java etc ?
+- In languages like C++, Java, one needs to specify that a type implements an interface like in the code given below:
+  ```java
+	interface Vehicle 
+	{   
+		// public and abstract  
+		void drive(); 
+	} 
+
+	// A class that implements the interface. 
+	class Car implements Vehicle 
+	{ 
+		// Implementing the capabilities of 
+		// interface. 
+		public void drive() 
+		{ 
+			System.out.println("Drive"); 
+		} 
+	}
+  ```
+- In such languages, defining the interface for the Object enables the compiler to form a dispatch tables for the objects pointing to the functions.
+- For a developer, this means that the object implementing the interface does not need to explicitly say it implements it, as shown in the code below:
+  ```go
+	type Vehicle interface {
+		Drive()
+	}
+
+	// Car implements the Vehicle interface simply by implementing method Drive.
+	type Car struct{}
+
+	func (c Car) Drive() {
+		fmt.Println("Drive")
+	}
+  ```
+- Thus any struct can satisfy an interface simply by implementing its method signatures. It offers several advantages like:
+  - Makes it easier to use mocks instead of real objects in unit tests.
+  - Helps enforce decoupling between parts of your codebase.
+
+### Should this package export interface in combination with the exposed type implementing the interface?
+- Don’t export any interfaces unless you have to.
+- Take a case of golang error interface.
+	```go
+  type error interface {
+      Error() string
+  }
+  ```
+- It is a builtin interface in the standard library that standardises the error behaviour.
+
+### Should this package return an interface rather than the concrete type?
+- According to CodeReviewComments, Go interfaces generally belong in the package that uses values of the interface type, not the package that implements those values.
+- However Effective go docs also complements it by saying that: if a type exists only to implement an interface and will never have exported methods beyond that interface, there is no need to export the type itself.
+- But the question is how do you identify such scenarios? How do you know that the type will have no additional value in the future? In my experience, the answer is to “wait”.
+- Do not start off by returning interfaces, but wait till your code evolves and you see the need for them. As Rob Pike says: “Don’t design with interfaces, discover them.”
+- A good hint for exposing an interface is when you have multiple types in your package implementing the same method signature.
+
+### In case of confusion, it is helpful to look for some red flags that can signals that you’re probably using interfaces wrong. Some are:
+- Your interface is not decoupling an API from change.
+  - Example:
+    ```go
+  package sendgrid
+
+  type SendGrid interface {
+    SendValidationEmail(email string) error
+    SendPasswordChangeEmail(email string) error
+  }
+
+  // sendgrid is our Sendgrid implementation.
+  type sendgrid struct {
+    /* impl */
+  }
+
+  func NewSendGrid(host string) SendGrid {
+    return &sendgrid{host}
+  }
+
+  func (s *sendgrid) SendValidationEmail(email string) error {
+      /* impl */
+  }
+
+  func (s *sendgrid) SendPasswordChangeEmail(email string) error {
+      /* impl */
+  }
+  ```
+- Also imagine that you want to add a new method to this interface that’s used by lots of people, how do you add a new method to it without breaking their code?
+  ```go
+  package sendgrid
+
+  // Remove the interface and change the concrete type to public
+  type SendGrid struct {
+    /* impl */
+  }
+
+  // Change the NewSendGrid to return pointer to SendGrid instead.
+
+  func NewSendGrid(host string) *SendGrid {
+    return &sendgrid{host}
+  }
+
+  func (s *sendgrid) SendValidationEmail(email string) error {
+      /* impl */
+  }
+
+  func (s *sendgrid) SendPasswordChangeEmail(email string) error {
+      /* impl */
+  }
+  ```
+- Your interface has more than 1 or 2 methods.
+  - Having too many methods for your interface reduces its usability. Taking example of fmt.Stringer interface, it has only one method signature, i.e
+    ```go
+  type Stringer interface {
+      String() string
+  }
+  ```
+- The bigger the interface, the weaker the abstraction.
+
 
 
 **[⬆ back to top](#list-of-contents)**
@@ -287,3 +411,4 @@ public class Logic {
 - https://medium.com/@cep21/what-accept-interfaces-return-structs-means-in-go-2fe879e25ee8
 - https://medium.com/@cep21/preemptive-interface-anti-pattern-in-go-54c18ac0668a
 - https://levelup.gitconnected.com/context-in-golang-98908f042a57
+- https://medium.com/nerd-for-tech/interfaces-in-golang-f9df59b0b71e

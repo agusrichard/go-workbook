@@ -6,6 +6,7 @@
 ### 1. [Don’t just check errors, handle them gracefully](#content-1)
 ### 2. [Error handling and Go](#content-2)
 ### 3. [REST API Error Handling in Go: Behavioral Type Assertion](#content-3)
+### 4. [Go Error Handling (Part 3) — The errors Package](#content-4)
 
 
 </br>
@@ -593,6 +594,15 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   	log.Fatal(http.ListenAndServe(":8080", nil))
   }
   ```
+
+</br>
+
+---
+
+## [Go Error Handling (Part 3) — The errors Package](https://sher-chowdhury.medium.com/go-error-handling-part-3-the-errors-package-1cb73f6eb0ce) <span id="content-4"></span>
+- On the other hand, the errors package doesn’t require any of this extra setup; instead, you can go straight to creating error variables using the package’s errors.New() function.
+  ![](https://miro.medium.com/max/1000/1*lmUD4CMR5_79bAF2CySGWA.png)
+- It’s best practice for functions to always return an error value.
 
 
 </br>
