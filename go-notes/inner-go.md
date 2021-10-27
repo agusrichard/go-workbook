@@ -8,6 +8,7 @@
 ### 3. [Preemptive Interface Anti-Pattern in Go](#content-3)
 ### 4. [Context in Golang!](#content-4)
 ### 5. [Interfaces in Golang](#content-5)
+### 6. [A Guide On SQL Database Transactions In Go](#content-6)
 
 
 </br>
@@ -399,6 +400,152 @@ public class Logic {
   ```
 - The bigger the interface, the weaker the abstraction.
 
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
+
+## [A Guide On SQL Database Transactions In Go](https://www.sohamkamani.com/golang/sql-transactions/) <span id="content-6"></span>
+
+### Introduction
+- Transactions are very useful when you want to perform multiple operations on a database, but still treat them as a single unit.
+
+### Transactions
+- For example, what if someone adopted pets and bought food for them? We could then write two queries to do just that:
+  ```sql
+  INSERT INTO pets (name, species) VALUES ('Fido', 'dog'), ('Albert', 'cat');
+  INSERT INTO food (name, quantity) VALUES ('Dog Biscuit', 3), ('Cat Food', 5);
+  ```
+- Now lets think about what happens if the first query succeeds, but the second query fails: you now have data which shows that two new pets are adopted, but no food has been bought.
+  - We cannot treat this as a success, since one of the queries failed
+  - We cannot treat this as a failure, since the first query passed. If we consider this a failure and retry, we would have to insert Fido and Albert for a second time.
+- To avoid situations like this, we want both the queries to pass or fail together. This is where SQL transactions come in.
+- Executing queries:
+  ```sql
+  BEGIN;
+  INSERT INTO pets (name, species) VALUES ('Fido', 'dog'), ('Albert', 'cat');
+  INSERT INTO food (name, quantity) VALUES ('Dog Biscuit', 3), ('Cat Food', 5);
+  END;
+  ```
+- The BEGIN statement starts a new transaction
+- Once the transaction has begun, SQL statements are executed one after the other, although they don’t reflect in the database just yet.
+- The END statement commits the above transactions atomically
+- Incase we want to abort the transaction in the middle, we could have used the ROLLBACK statement
+- Here, “atomically” means both of the SQL statements are treated as a single unit - they pass or fail together
+
+### Implementing Transactions in Go - Basic Transactions
+- Example:
+  ```go
+  package main
+
+  import (
+    "context"
+    "database/sql"
+    "log"
+
+    _ "github.com/lib/pq"
+  )
+
+  func main() {
+    // Create a new connection to our database
+    connStr := "user=soham dbname=pet_shop sslmode=disable"
+    db, err := sql.Open("postgres", connStr)
+    if err != nil {
+      log.Fatal(err)
+    }
+
+    // Create a new context, and begin a transaction
+    ctx := context.Background()
+    tx, err := db.BeginTx(ctx, nil)
+    if err != nil {
+      log.Fatal(err)
+    }
+    // `tx` is an instance of `*sql.Tx` through which we can execute our queries
+
+    // Here, the query is executed on the transaction instance, and not applied to the database yet
+    _, err = tx.ExecContext(ctx, "INSERT INTO pets (name, species) VALUES ('Fido', 'dog'), ('Albert', 'cat')")
+    if err != nil {
+      // Incase we find any error in the query execution, rollback the transaction
+      tx.Rollback()
+      return
+    }
+
+    // The next query is handled similarly
+    _, err = tx.ExecContext(ctx, "INSERT INTO food (name, quantity) VALUES ('Dog Biscuit', 3), ('Cat Food', 5)")
+    if err != nil {
+      tx.Rollback()
+      return
+    }
+
+    // Finally, if no errors are recieved from the queries, commit the transaction
+    // this applies the above changes to our database
+    err = tx.Commit()
+    if err != nil {
+      log.Fatal(err)
+    }
+  }
+  ```
+
+### Read-and-Update Transactions
+- Example:
+  ```go
+  package main
+
+  import (
+    "context"
+    "database/sql"
+    "log"
+
+    _ "github.com/lib/pq"
+  )
+
+  func main() {
+    // Initialize a connection, and begin a transaction like before
+    connStr := "user=soham dbname=pet_shop sslmode=disable"
+    db, err := sql.Open("postgres", connStr)
+    if err != nil {
+      log.Fatal(err)
+    }
+
+    ctx := context.Background()
+    tx, err := db.BeginTx(ctx, nil)
+    if err != nil {
+      log.Fatal(err)
+    }
+
+    _, err = tx.ExecContext(ctx, "INSERT INTO pets (name, species) VALUES ('Fido', 'dog'), ('Albert', 'cat')")
+    if err != nil {
+      tx.Rollback()
+      return
+    }
+
+    // Run a query to get a count of all cats
+    row := tx.QueryRow("SELECT count(*) FROM pets WHERE species='cat'")
+    var catCount int
+    // Store the count in the `catCount` variable
+    err = row.Scan(&catCount)
+    if err != nil {
+      tx.Rollback()
+      return
+    }
+
+    // Now update the food table, increasing the quantity of cat food by 10x the number of cats
+    _, err = tx.ExecContext(ctx, "UPDATE food SET quantity=quantity+$1 WHERE name='Cat Food'", 10*catCount)
+    if err != nil {
+      tx.Rollback()
+      return
+    }
+
+    // Commit the change if all queries ran successfully
+    err = tx.Commit()
+    if err != nil {
+      log.Fatal(err)
+    }
+  }
+  ```
+- It’s important to note why the read query is executed within the transaction: any read query outside the transaction doesn’t consider the values of an uncommitted transaction.
+- This means that if our read query was outside the transaction, we would not consider the pets added in the first insert query.
 
 
 **[⬆ back to top](#list-of-contents)**
@@ -412,3 +559,4 @@ public class Logic {
 - https://medium.com/@cep21/preemptive-interface-anti-pattern-in-go-54c18ac0668a
 - https://levelup.gitconnected.com/context-in-golang-98908f042a57
 - https://medium.com/nerd-for-tech/interfaces-in-golang-f9df59b0b71e
+- https://www.sohamkamani.com/golang/sql-transactions/
