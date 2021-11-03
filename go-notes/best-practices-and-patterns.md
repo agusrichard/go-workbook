@@ -4,7 +4,8 @@
 
 ## List of Contents:
 ### 1. [7 Code Patterns in Go I Can’t Live Without](#content-1)
-### 1. [Rules pattern in Golang](#content-2)
+### 2. [Rules pattern in Golang](#content-2)
+### 3. [Practical SOLID in Golang: Open/Closed Principle](#content-3)
 
 
 </br>
@@ -208,6 +209,229 @@
   }
   ```
 
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
+
+## [Practical SOLID in Golang: Open/Closed Principle](https://levelup.gitconnected.com/practical-solid-in-golang-open-closed-principle-1dd361565452) <span id="content-3"></span>
+
+### When we do not respect the Open/Closed Principle
+- You should be able to extend the behavior of a system without having to modify that system.
+- By checking the code example below, we can see what it means for some structures not to respect this principle and possible consequences.
+  ```go
+  import (
+    "net/http"
+
+    "github.com/ahmetb/go-linq"
+    "github.com/gin-gonic/gin"
+  )
+
+  type PermissionChecker struct {
+    //
+    // some fields
+    //
+  }
+
+  func (c *PermissionChecker) HasPermission(ctx *gin.Context, name string) bool {
+    var permissions []string
+    switch ctx.GetString("authType") {
+    case "jwt":
+      permissions = c.extractPermissionsFromJwt(ctx.Request.Header)
+    case "basic":
+      permissions = c.getPermissionsForBasicAuth(ctx.Request.Header)
+    case "applicationKey":
+      permissions = c.getPermissionsForApplicationKey(ctx.Query("applicationKey"))
+    }
+    
+    var result []string
+    linq.From(permissions).
+      Where(func(permission interface{}) bool {
+        return permission.(string) == name
+      }).ToSlice(&result)
+
+    return len(result) > 0
+  }
+
+  func (c *PermissionChecker) getPermissionsForApplicationKey(key string) []string {
+    var result []string
+    //
+    // extract JWT from the request header
+    //
+    return result
+  }
+
+  func (c *PermissionChecker) getPermissionsForBasicAuth(h http.Header) []string {
+    var result []string
+    //
+    // extract JWT from the request header
+    //
+    return result
+  }
+
+  func (c *PermissionChecker) extractPermissionsFromJwt(h http.Header) []string {
+    var result []string
+    //
+    // extract JWT from the request header
+    //
+    return result
+  }
+  ```
+- Here we have the primary method, HasPermission, which checks if permission with specific names is associated with the data within the Context.
+- If we respect The Single Responsibility Principle, PermissionChecker is responsible for deciding if permission is inside the Context, and it does not have anything with the authorization process.
+- Suppose we want to extend the authorization logic and add some new flow, such as keeping user data in session or using Digest Authorization. In that case, we need to make adaptations in PermissionChecker as well.
+- Such implementation brings the explosion of issues:
+  - PermissionChecker keeps the logic initially handled somewhere else.
+  - Any adaptation of authorization logic, which may be a different module, requires adaptation in PermissionChecker.
+  - To add a new way of extracting permissions, we always need to modify PermissionChecker.
+  - Logic inside PermissionChecker inevitably grows with each new authorization flow.
+  - Unit testing for PermissionChecker contains too many technical details about different extractions of permission.
+
+### How we do respect The Open/Closed Principle
+- The Open/Closed Principle says that software structures should be open for extension but closed for modification.
+- In Object-Oriented Programming, we support such extensions by using different implementations for the same interface. In other words, we use polymorphism.
+  ```go
+  type PermissionProvider interface {
+    Type() string
+    GetPermissions(ctx *gin.Context) []string
+  }
+
+  type PermissionChecker struct {
+    providers []PermissionProvider
+    //
+    // some fields
+    //
+  }
+
+  func (c *PermissionChecker) HasPermission(ctx *gin.Context, name string) bool {
+    var permissions []string
+    for _, provider := range c.providers {
+      if ctx.GetString("authType") != provider.Type() {
+        continue
+      }
+      
+      permissions = provider.GetPermissions(ctx)
+      break
+    }
+
+    var result []string
+    linq.From(permissions).
+      Where(func(permission interface{}) bool {
+        return permission.(string) == name
+      }).ToSlice(&result)
+
+    return len(result) > 0
+  }
+  ```
+- Now, we introduct an interface to be implemented by e.g JwtPermissionProvider, or ApiKeyPermissionProvider, or AuthBasicPermissionProvider.
+
+### Some more examples
+- Example:
+  ```go
+  type PermissionProvider interface {
+    Type() string
+    GetPermissions(ctx *gin.Context) []string
+  }
+
+  type PermissionChecker struct {
+    //
+    // some fields
+    //
+  }
+
+  func (c *PermissionChecker) HasPermission(ctx *gin.Context, provider PermissionProvider, name string) bool {
+    permissions := provider.GetPermissions(ctx)
+
+    var result []string
+    linq.From(permissions).
+      Where(func(permission interface{}) bool {
+        return permission.(string) == name
+      }).ToSlice(&result)
+
+    return len(result) > 0
+  }
+  ```
+- Example:
+  ```go
+  func GetCities(sourceType string, source string) ([]City, error) {
+    var data []byte
+    var err error
+
+    if sourceType == "file" {
+      data, err = ioutil.ReadFile(source)
+      if err != nil {
+        return nil, err
+      }
+    } else if sourceType == "link" {
+      resp, err := http.Get(source)
+      if err != nil {
+        return nil, err
+      }
+
+      data, err = ioutil.ReadAll(resp.Body)
+      if err != nil {
+        return nil, err
+      }
+      defer resp.Body.Close()
+    }
+
+    var cities []City
+    err = yaml.Unmarshal(data, &cities)
+    if err != nil {
+      return nil, err
+    }
+
+    return cities, nil
+  }
+  ```
+- Example (better way):
+  ```go
+  type DataReader func(source string) ([]byte, error)
+
+  func ReadFromFile(fileName string) ([]byte, error) {
+    data, err := ioutil.ReadFile(fileName)
+    if err != nil {
+      return nil, err
+    }
+
+    return data, nil
+  }
+
+  func ReadFromLink(link string) ([]byte, error) {
+    resp, err := http.Get(link)
+    if err != nil {
+      return nil, err
+    }
+
+    data, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+      return nil, err
+    }
+    defer resp.Body.Close()
+
+    return data, nil
+  }
+
+  func GetCities(reader DataReader, source string) ([]City, error) {
+    data, err := reader(source)
+    if err != nil {
+      return nil, err
+    }
+
+    var cities []City
+    err = yaml.Unmarshal(data, &cities)
+    if err != nil {
+      return nil, err
+    }
+
+    return cities, nil
+  }
+  ```
+- As you can see in the solution from above, in Go, we may define a new type that embeds the function. Here we described a new type, DataReader, representing a function type for reading raw data from some source.
+- New methods ReadFromFile and ReadFromLink are actual implementations of the DataReader type.
+- The GetCities method expects the actual implementation of DataReader as an argument, which then executes inside the function body and takes raw data.
+
 
 **[⬆ back to top](#list-of-contents)**
 
@@ -218,3 +442,4 @@
 ## References:
 - https://betterprogramming.pub/7-code-patterns-in-go-i-cant-live-without-f46f72f58c4b
 - https://medium.com/@michalkowal567/rules-pattern-in-golang-425765f3c646
+- https://levelup.gitconnected.com/practical-solid-in-golang-open-closed-principle-1dd361565452
