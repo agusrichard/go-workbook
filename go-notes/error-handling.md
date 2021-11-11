@@ -8,6 +8,7 @@
 ### 3. [REST API Error Handling in Go: Behavioral Type Assertion](#content-3)
 ### 4. [Go Error Handling (Part 3) — The errors Package](#content-4)
 
+### 5. [Decorating Go Errors](#content-5)
 
 </br>
 
@@ -609,8 +610,164 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 ---
 
+## [Decorating Go Errors](https://medium.com/spectro-cloud/decorating-go-error-d1db60bb9249) <span id="content-5"></span>
+
+### Introduction
+- Go treats the error as a value with a predefined type, technically an interface.
+- However, writing a multi-layered architecture application and exposing the features with APIs demands error treatment with much more contextual information than just a value.
+
+### Custom Type
+- As we will override the default Go error type we have to start with a custom error type which will be interpreted within the application, and is also of Go error type. Hence we will introduce new custom error interface composing the Go error:
+  ```go
+  type GoError struct {
+      error
+  }
+  ```
+
+### Contextual Data
+- When we say the error is a value in Go, it is of string value - any type which has the Error() string function implemented qualifies for the error type.
+- Treating string values as errors complicates the error interpretations across the layers, as interpreting the error string is not the right approach. So let’s decouple the string with the error code.
+  ```go
+  type GoError struct {
+    error
+    Code    string
+  }
+  ```
+- Now the error interpretation will be based on the error Code rather than the string. Let’s further decouple the error string with the contextual data which allows internationalization with thei18N package
+  ```go
+  type GoError struct {
+    error
+    Code    string
+    Data    map[string]interface{}
+  }
+  ```
+- Data contains the contextual data to construct the error string. The error string can be templatized with the data:
+  ```text
+  //i18N def
+  "InvalidParamValue": "Invalid parameter value '{{.actual}}', expected '{{.expected}}' for '{{.name}}'"
+  ```
+
+### Cause
+- The error can occur in any layer and it is necessary to provide the option for each layer to interpret the error and further wrap with additional contextual information without losing the original error value. 
+- The GoError can be further decorated with the Causes which will hold the entire error stack.
+  ```go
+  type GoError struct {
+    error
+    Code    string
+    Data    map[string]interface{}
+    Causes  []error
+  }
+  ```
+- Causes is an array type if it has to hold multiple error data and is set to the base error type to include the third-party error for the cause within the application.
+- Tagging the layer component will help to identify the layer where the error has occurred, and unnecessary error wraps can be avoided.
+- For example, if the error component of servicetype occurs in the service layer, then the wrapping error might not be required
+- Component information checks will help to prevent exposing the errors which a user shouldn’t be informed about, like Database errors.
+  ```go
+  type GoError struct {
+    error
+    Code      string
+    Data      map[string]interface{}
+    Causes    []error
+    Component ErrComponent
+  }
+  type ErrComponent string
+  const (
+    ErrService  ErrComponent = "service"
+    ErrRepo     ErrComponent = "repository"
+    ErrLib      ErrComponent = "library"
+  )
+  ```
+
+### Response Type
+- Adding an error response type will support the error categorization for easy interpretation. For example, the errors can be categorized with response types like NotFound, and this information can be used for errors like DbRecordNotFound , ResourceNotFound , UserNotFound, and so on.
+- Example:
+  ```go
+  type GoError struct {
+    error
+    Code         string
+    Data         map[string]interface{}
+    Causes       []error
+    Component    ErrComponent
+    ResponseType ResponseErrType
+  }
+  type ResponseErrType string
+
+  const (
+    BadRequest    ResponseErrType = "BadRequest"
+    Forbidden     ResponseErrType = "Forbidden"
+    NotFound      ResponseErrType = "NotFound"
+    AlreadyExists ResponseErrType = "AlreadyExists"
+  )
+  ```
+
+### Retry
+- Snippet:
+  ```go
+  type GoError struct {
+    error
+    Code         string
+    Message      string
+    Data         map[string]interface{}
+    Causes       []error
+    Component    ErrComponent
+    ResponseType ResponseErrType
+    Retryable    bool
+  }
+  ```
+
+### GoError Interface
+- Error checking can be simplified by defining an explicit error interface definition with the implementation of GoError:
+  ```go
+  package goerr
+  type Error interface {
+    error
+
+    Code() string
+    Message() string
+    Cause() error
+    Causes() []error
+    Data() map[string]interface{}
+    String() string
+    ResponseErrType() ResponseErrType
+    SetResponseType(r ResponseErrType) Error
+    Component() ErrComponent
+    SetComponent(c ErrComponent) Error
+    Retryable() bool
+    SetRetryable() Error
+  }
+  ```
+
+### Error Abstraction
+- With the above-mentioned decorations, it is important to build the abstraction over an error and keep these decorations in a single place and provide the reusability of the error function:
+  ```go
+  func ResourceNotFound(id, kind string, cause error) GoError {
+    data := map[string]interface{}{"kind": kind, "id": id}
+    return GoError{
+        Code:         "ResourceNotFound",
+        Data:         data,
+        Causes:       []error{cause},
+        Component:    ErrService,
+        ResponseType: NotFound,
+        Retryable:    false,
+    }
+  }
+  ```
+- This error function abstracts the ResourceNotFound and the developer will use this function instead of constructing the new error object every time:
+  ```go
+  //UserService
+  user, err := u.repo.FindUser(ctx, userId)
+  if err != nil {
+    if err.ResponseType == NotFound {
+        return ResourceNotFound(userUid, "User", err)
+    }
+    return err
+  }
+  ```
+
+
 ## References:
 - https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully
 - https://www.youtube.com/watch?v=lsBF58Q-DnY
 - https://blog.golang.org/error-handling-and-go
 - https://medium.com/@ozdemir.zynl/rest-api-error-handling-in-go-behavioral-type-assertion-509d93636afd
+- https://medium.com/spectro-cloud/decorating-go-error-d1db60bb9249
