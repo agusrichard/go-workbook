@@ -9,6 +9,7 @@
 ### 4. [Context in Golang!](#content-4)
 ### 5. [Interfaces in Golang](#content-5)
 ### 6. [A Guide On SQL Database Transactions In Go](#content-6)
+### 7. [5 Useful Go Tricks and Tips You Should Know 🐹 🚀](#content-7)
 
 
 </br>
@@ -554,9 +555,118 @@ public class Logic {
 
 ---
 
+## [5 Useful Go Tricks and Tips You Should Know 🐹 🚀](https://cgarciarosales97.medium.com/5-useful-go-tricks-and-tips-you-should-know-b8017d1f1833) <span id="content-7"></span>
+
+### 1. Execution time of a code
+- Snippet:
+  ```go
+  package main
+
+  import (
+    "log"
+    "time"
+  )
+
+  func ExecTime(start time.Time, name string) {
+    elapsed := time.Since(start)
+    log.Printf("%s took %s", name, elapsed)
+  }
+
+  func main() {
+    defer ExecTime(time.Now(), "main")
+    time.Sleep(3 * time.Second)
+  }
+  ```
+### 2. Marshall Json string with no defined Struct to a “Object”
+- Snippet:
+  ```go
+  package main
+
+  import (
+    "encoding/json"
+    "fmt"
+    "time"
+  )
+
+  type LogRegister struct {
+    ID            int
+    RequestString string
+    RequestJson   map[string]interface{}
+    CreatedAt     time.Time
+    UpdatedAt     time.Time
+  }
+
+  func (c *LogRegister) FormatStringToJson() {
+    var request map[string]interface{}
+
+    json.Unmarshal([]byte(c.RequestString), &request)
+
+    c.RequestJson = request
+  }
+
+  func main() {
+    logRegister := LogRegister{
+      ID: 1,
+      RequestString: `
+      {
+        "status":200,
+        "message":"ok, now you can use me"
+      }
+      `,
+      CreatedAt: time.Now(),
+    }
+    logRegister.FormatStringToJson()
+    if logRegister.RequestJson["status"] != nil {
+      fmt.Println(logRegister.RequestJson["status"])
+    }
+    if logRegister.RequestJson["message"] != nil {
+      fmt.Println(logRegister.RequestJson["message"])
+    }
+  }
+  ```
+
+### 3. Get Test Coverage of your code
+- Command:
+  ```shell
+  go test -coverprofile=coverage.out ./… && go tool cover -html=coverage.out && rm coverage.out
+  ```
+
+### 4. Search if a String is inside of a Slice
+- Snippet:
+  ```go
+  package main
+
+  func StringInSlice(a string, list []string) bool {
+    for _, b := range list {
+      if b == a {
+        return true
+      }
+    }
+    return false
+  }
+
+  func main() {
+    permmitedFields := []string{"status", "message"}
+    field := "createdAt"
+
+    if StringInSlice(field, permmitedFields) {
+      println("the field is authorized")
+    }
+    println("the field is not authorized")
+  }
+  ```
+
+### 5. CPU Profiling
+- Command:
+  ```shell
+  go test -cpuprofile=cpu.out ./… && go tool pprof cpu.out && rm cpu.out
+  ```
+
+
 ## References:
 - https://medium.com/@cep21/what-accept-interfaces-return-structs-means-in-go-2fe879e25ee8
 - https://medium.com/@cep21/preemptive-interface-anti-pattern-in-go-54c18ac0668a
 - https://levelup.gitconnected.com/context-in-golang-98908f042a57
 - https://medium.com/nerd-for-tech/interfaces-in-golang-f9df59b0b71e
 - https://www.sohamkamani.com/golang/sql-transactions/
+- https://cgarciarosales97.medium.com/5-useful-go-tricks-and-tips-you-should-know-b8017d1f1833
