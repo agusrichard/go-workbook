@@ -10,6 +10,7 @@
 ### 5. [Interfaces in Golang](#content-5)
 ### 6. [A Guide On SQL Database Transactions In Go](#content-6)
 ### 7. [5 Useful Go Tricks and Tips You Should Know 🐹 🚀](#content-7)
+### 8. [Try and Catch in Golang](#content-8)
 
 
 </br>
@@ -662,6 +663,81 @@ public class Logic {
   go test -cpuprofile=cpu.out ./… && go tool pprof cpu.out && rm cpu.out
   ```
 
+## [Try and Catch in Golang](https://dzone.com/articles/try-and-catch-in-golang) <span id="content-8"></span>
+
+- Snippet:
+  ```go
+  Block{
+          Try: func() {
+              fmt.Println("I tried")
+              Throw("Oh,...sh...")
+          },
+          Catch: func(e Exception) {
+              fmt.Printf("Caught %v\n", e)
+          },
+          Finally: func() {
+              fmt.Println("Finally...")
+          },
+      }.Do()
+  ```
+- Snippet:
+  ```go
+  package main
+  
+  import (
+      "fmt"
+  )
+  
+  type Block struct {
+      Try     func()
+      Catch   func(Exception)
+      Finally func()
+  }
+  
+  type Exception interface{}
+  
+  func Throw(up Exception) {
+      panic(up)
+  }
+  
+  func (tcf Block) Do() {
+      if tcf.Finally != nil {
+  
+          defer tcf.Finally()
+      }
+      if tcf.Catch != nil {
+          defer func() {
+              if r := recover(); r != nil {
+                  tcf.Catch(r)
+              }
+          }()
+      }
+      tcf.Try()
+  }
+  
+  func main() {
+      fmt.Println("We started")
+      Block{
+          Try: func() {
+              fmt.Println("I tried")
+              Throw("Oh,...sh...")
+          },
+          Catch: func(e Exception) {
+              fmt.Printf("Caught %v\n", e)
+          },
+          Finally: func() {
+              fmt.Println("Finally...")
+          },
+      }.Do()
+      fmt.Println("We went on")
+  }
+  ```
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
 
 ## References:
 - https://medium.com/@cep21/what-accept-interfaces-return-structs-means-in-go-2fe879e25ee8
