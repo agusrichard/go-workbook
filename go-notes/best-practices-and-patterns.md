@@ -5,7 +5,8 @@
 ## List of Contents:
 ### 1. [7 Code Patterns in Go I Can’t Live Without](#content-1)
 ### 2. [Rules pattern in Golang](#content-2)
-### 3. [Practical SOLID in Golang: Open/Closed Principle](#content-3)
+### 3. [Practical SOLID in Golang: Single Responsibility Principle](#content-3)
+### 4. [Practical SOLID in Golang: Open/Closed Principle](#content-4)
 
 
 </br>
@@ -215,7 +216,255 @@
 
 ---
 
-## [Practical SOLID in Golang: Open/Closed Principle](https://levelup.gitconnected.com/practical-solid-in-golang-open-closed-principle-1dd361565452) <span id="content-3"></span>
+## [Practical SOLID in Golang: Single Responsibility Principle](https://levelup.gitconnected.com/practical-solid-in-golang-single-responsibility-principle-20afb8643483) <span id="content-3"></span>
+
+
+### When we do not respect Single Responsibility
+- The Single Responsibility Principle (SRP) states that each software module should have one and only one reason to change.
+- Today, SRP has a wide range, where it touches different aspects of the software. We can use its purpose in classes, functions, modules. And, naturally, in Go, we can use it in a struct.
+  ```go
+  type EmailService struct {
+    db           *gorm.DB
+    smtpHost     string
+    smtpPassword string
+    smtpPort     int
+  }
+
+  func NewEmailService(db *gorm.DB, smtpHost string, smtpPassword string, smtpPort int) *EmailService {
+    return &EmailService{
+      db:           db,
+      smtpHost:     smtpHost,
+      smtpPassword: smtpPassword,
+      smtpPort:     smtpPort,
+    }
+  }
+
+  func (s *EmailService) Send(from string, to string, subject string, message string) error {
+    email := EmailGorm{
+      From:    from,
+      To:      to,
+      Subject: subject,
+      Message: message,
+    }
+
+    err := s.db.Create(&email).Error
+    if err != nil {
+      log.Println(err)
+      return err
+    }
+    
+    auth := smtp.PlainAuth("", from, s.smtpPassword, s.smtpHost)
+    
+    server := fmt.Sprintf("%s:%d", s.smtpHost, s.smtpPort)
+    
+    err = smtp.SendMail(server, auth, from, []string{to}, []byte(message))
+    if err != nil {
+      log.Println(err)
+      return err
+    }
+
+    return nil
+  }
+  ```
+- Explanation for the above code:
+  - Even if it looks fine, we realize that this code breaks every aspect of SRP when we scratch the surface.
+  - The responsibility of EmailService is not just to send emails but to store an email message into DB and send it via SMTP protocol.
+  - The word "and" is bold with purpose. Using such an expression does not look like the case where we describe a single responsibility.
+  - As soon as describing the responsibility of some code struct requires the usage of the word "and", it already breaks the Single Responsibility Principle.
+  - In our example, we broke SRP on many code levels. The first one is on the level of function. Function Send is responsible for both storing a message in the database and sending email over SMTP protocol.
+  - The second level is a struct EmailService. As we already concluded, it also has two responsibilities, storing inside the database and sending emails.
+  - What are the consequences of such a code?
+    - When we change a table structure or type of storage, we need to change a code for sending emails over SMTP.
+    - When we want to integrate Mailgun or Mailjet, we need to change a code for storing data in the MySQL database.
+    - If we choose different integration of sending emails in the application, each integration needs to have a logic to store data in the database.
+    - Suppose we decide to split the application's responsibility into two teams, one for maintaining a database and the second one for integrating email providers. In that case, they will work on the same code.
+    - This service is practically untestable with unit tests.
+
+### How we do respect Single Responsibility
+- To split the responsibilities in this case and make code blocks that have just one reason to exist, we should define a struct for each of them.
+- It practically means to have a separate struct for storing data in some storage and a different struct for sending emails by using some integration with email providers. 
+  ```go
+  type EmailGorm struct {
+    gorm.Model
+    From    string
+    To      string
+    Subject string
+    Message string
+  }
+
+  type EmailRepository interface {
+    Save(from string, to string, subject string, message string) error
+  }
+
+  type EmailDBRepository struct {
+    db *gorm.DB
+  }
+
+  func NewEmailRepository(db *gorm.DB) EmailRepository {
+    return &EmailDBRepository{
+      db: db,
+    }
+  }
+
+  func (r *EmailDBRepository) Save(from string, to string, subject string, message string) error {
+    email := EmailGorm{
+      From:    from,
+      To:      to,
+      Subject: subject,
+      Message: message,
+    }
+
+    err := r.db.Create(&email).Error
+    if err != nil {
+      log.Println(err)
+      return err
+    }
+
+    return nil
+  }
+
+  type EmailSender interface {
+    Send(from string, to string, subject string, message string) error
+  }
+
+  type EmailSMTPSender struct {
+    smtpHost     string
+    smtpPassword string
+    smtpPort     int
+  }
+
+  func NewEmailSender(smtpHost string, smtpPassword string, smtpPort int) EmailSender {
+    return &EmailSMTPSender{
+      smtpHost:     smtpHost,
+      smtpPassword: smtpPassword,
+      smtpPort:     smtpPort,
+    }
+  }
+
+  func (s *EmailSMTPSender) Send(from string, to string, subject string, message string) error {
+    auth := smtp.PlainAuth("", from, s.smtpPassword, s.smtpHost)
+
+    server := fmt.Sprintf("%s:%d", s.smtpHost, s.smtpPort)
+
+    err := smtp.SendMail(server, auth, from, []string{to}, []byte(message))
+    if err != nil {
+      log.Println(err)
+      return err
+    }
+
+    return nil
+  }
+
+  type EmailService struct {
+    repository EmailRepository
+    sender     EmailSender
+  }
+
+  func NewEmailService(repository EmailRepository, sender EmailSender) *EmailService {
+    return &EmailService{
+      repository: repository,
+      sender:     sender,
+    }
+  }
+
+  func (s *EmailService) Send(from string, to string, subject string, message string) error {
+    err := s.repository.Save(from, to, subject, message)
+    if err != nil {
+      return err
+    }
+
+    return s.sender.Send(from, to, subject, message)
+  }
+  ```
+- Here we provide two new structs. The first one is EmailDBRepository as an implementation for the EmailRepository interface. It includes support for persisting data in the underlying database.
+- The second structure is EmailSMTPSender that implements the EmailSender interface. This struct is responsible for only email sending over SMPT protocol.
+- Finally, the new EmailService contains interfaces from above and delegates the request for email sending.
+- Here, that is not the case. EmailService does not hold the responsibility for storing and sending emails. It delegates them to the structs below. Its responsibility is to delegate requests for processing emails to the underlying services.
+- There is a difference between holding and delegating responsibility. If an adaptation of a particular code can remove the whole purpose of responsibility, we talk about holding. If that responsibility still exists even after removing a specific code, then we talk about delegation.
+
+### Some more examples
+- Example:
+  ```go
+  import "github.com/dgrijalva/jwt-go"
+
+  func extractUsername(header http.Header) string {
+    raw := header.Get("Authorization")
+    parser := &jwt.Parser{}
+    token, _, err := parser.ParseUnverified(raw, jwt.MapClaims{})
+    if err != nil {
+      return ""
+    }
+
+    claims, ok := token.Claims.(jwt.MapClaims)
+    if !ok {
+      return ""
+    }
+
+    return claims["username"].(string)
+  }
+  ```
+- Instead of restructuring a way to describe the function's purpose, we should engage more in restructuring the method itself. Below you can find a proposal for a new code:
+  ```go
+  func extractUsername(header http.Header) string {
+    raw := extractRawToken(header)
+    claims := extractClaims(raw)
+    if claims == nil {
+      return ""
+    }
+    
+    return claims["username"].(string)
+  }
+
+  func extractRawToken(header http.Header) string {
+    return header.Get("Authorization")
+  }
+
+  func extractClaims(raw string) jwt.MapClaims {
+    parser := &jwt.Parser{}
+    token, _, err := parser.ParseUnverified(raw, jwt.MapClaims{})
+    if err != nil {
+      return nil
+    }
+
+    claims, ok := token.Claims.(jwt.MapClaims)
+    if !ok {
+      return nil
+    }
+    
+    return claims
+  }
+  ```
+- Now we have two new functions. The first one, extractRawToken, contains the responsibility for extracting a raw JWT token from the HTTP header. If we change a key in the header that holds a token, we should touch just one method.
+- Example 2:
+  ```go
+  type User struct {
+    db *gorm.DB
+    Username string
+    Firstname string
+    Lastname string
+    Birthday time.Time
+    //
+    // some more fields
+    //
+  }
+
+  func (u User) IsAdult() bool {
+    return u.Birthday.AddDate(18, 0, 0).Before(time.Now())
+  }
+
+  func (u *User) Save() error {
+    return u.db.Exec("INSERT INTO users ...", u.Username, u.Firstname, u.Lastname, u.Birthday).Error
+  }
+  ```
+- The example above shows the typical implementation of the pattern Active Record. In this case, we also added a business logic inside the User struct, not just storing data into the database.
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
+
+## [Practical SOLID in Golang: Open/Closed Principle](https://levelup.gitconnected.com/practical-solid-in-golang-open-closed-principle-1dd361565452) <span id="content-4"></span>
 
 ### When we do not respect the Open/Closed Principle
 - You should be able to extend the behavior of a system without having to modify that system.
@@ -442,4 +691,5 @@
 ## References:
 - https://betterprogramming.pub/7-code-patterns-in-go-i-cant-live-without-f46f72f58c4b
 - https://medium.com/@michalkowal567/rules-pattern-in-golang-425765f3c646
+- https://levelup.gitconnected.com/practical-solid-in-golang-single-responsibility-principle-20afb8643483
 - https://levelup.gitconnected.com/practical-solid-in-golang-open-closed-principle-1dd361565452
