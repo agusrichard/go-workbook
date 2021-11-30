@@ -7,6 +7,7 @@
 ### 2. [Rules pattern in Golang](#content-2)
 ### 3. [Practical SOLID in Golang: Single Responsibility Principle](#content-3)
 ### 4. [Practical SOLID in Golang: Open/Closed Principle](#content-4)
+### 5. [Practical SOLID in Golang: Liskov Substitution Principle](#content-5)
 
 
 </br>
@@ -680,6 +681,279 @@
 - As you can see in the solution from above, in Go, we may define a new type that embeds the function. Here we described a new type, DataReader, representing a function type for reading raw data from some source.
 - New methods ReadFromFile and ReadFromLink are actual implementations of the DataReader type.
 - The GetCities method expects the actual implementation of DataReader as an argument, which then executes inside the function body and takes raw data.
+
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
+
+## [Practical SOLID in Golang: Liskov Substitution Principlet](https://levelup.gitconnected.com/practical-solid-in-golang-liskov-substitution-principle-e0d2eb9dd39) <span id="content-5"></span>
+
+### When we do not respect The Liskov Substitution
+- Definition:
+  > Let Φ(x) be a property provable about objects x of type T. Then Φ(y) should be true for objects y of type S where S is a subtype of T.
+- A more practical definition:
+  > If S is a subtype of T, then objects of type T in a program may be replaced with objects of type S without altering any of the desirable properties of that program.
+- If ObjectA is an instance of ClassA, and ObjectB is an instance of ClassB, and ClassB is a subtype of ClassA — if we use ObjectB instead ObjectA somewhere in the code, the functionality of the application must not be broken.
+- Example:
+  ```go
+  type User struct {
+    ID uuid.UUID
+    //
+    // some fields
+    //
+  }
+
+  type UserRepository interface {
+    Update(ctx context.Context, user User) error
+  }
+
+  type DBUserRepository struct {
+    db *gorm.DB
+  }
+
+  func (r *DBUserRepository) Update(ctx context.Context, user User) error {
+    return r.db.WithContext(ctx).Delete(user).Error
+  }
+  ```
+- Here we can see one code example. And, to be honest, I hardly could find worse and more dummy than this one. Like, instead of updating the User in the database, like the Update method says, it deletes it.
+- But, hey, this is the point. We can see an interface, UserRepository. Following the interface, we have a struct, DBUserRepository. Although this struct implements the initial interface — it does not do what the interface claims it should.
+- It breaks the functionality of the interface instead of following the expectation. Here is the point of LSP in Go: struct must not violate the purpose of the interface.
+- Less ridiculous example:
+  ```go
+  type UserRepository interface {
+    Create(ctx context.Context, user User) (*User, error)
+    Update(ctx context.Context, user User) error
+  }
+
+  type DBUserRepository struct {
+    db *gorm.DB
+  }
+
+  func (r *DBUserRepository) Create(ctx context.Context, user User) (*User, error) {
+    err := r.db.WithContext(ctx).Create(&user).Error
+    return &user, err
+  }
+
+  func (r *DBUserRepository) Update(ctx context.Context, user User) error {
+    return r.db.WithContext(ctx).Save(&user).Error
+  }
+
+  type MemoryUserRepository struct {
+    users map[uuid.UUID]User
+  }
+
+  func (r *MemoryUserRepository) Create(_ context.Context, user User) (*User, error) {
+    if r.users == nil {
+      r.users = map[uuid.UUID]User{}
+    }
+    user.ID = uuid.New()
+    r.users[user.ID] = user
+    
+    return &user, nil
+  }
+
+  func (r *MemoryUserRepository) Update(_ context.Context, user User) error {
+    if r.users == nil {
+      r.users = map[uuid.UUID]User{}
+    }
+    r.users[user.ID] = user
+
+    return nil
+  }
+  ```
+- Here we have new UserRepository interface and its two implementations: DBUserRepository and MemoryUserRepository. As we can see, MemoryUserRepository does need theContext argument, but it is still there to respect the interface.
+- Here problem begins. We adapted MemoryUserRepository to support the interface, even though this intention is unnatural. Consequently, we can switch data sources in our application, where one source is not permanent storage.
+- The purpose of the Repository pattern is to represent the interface to the underlying permanent data storage, like a database. It should not play the role of cache system, like here where we store Users in memory.
+- Geometry example:
+  ```go
+  type ConvexQuadrilateral interface {
+    GetArea() int
+  }
+
+  type Rectangle interface {
+    ConvexQuadrilateral
+    SetA(a int)
+    SetB(b int)
+  }
+
+  type Oblong struct {
+    Rectangle
+    a int
+    b int
+  }
+
+  func (o *Oblong) SetA(a int) {
+    o.a = a
+  }
+
+  func (o *Oblong) SetB(b int) {
+    o.b = b
+  }
+
+  func (o Oblong) GetArea() int {
+    return o.a * o.b
+  }
+
+  type Square struct {
+    Rectangle
+    a int
+  }
+
+  func (o *Square) SetA(a int) {
+    o.a = a
+  }
+
+  func (o Square) GetArea() int {
+    return o.a * o.a
+  }
+
+  func (o *Square) SetB(b int) {
+    //
+    // should it be o.a = b ?
+    // or should it be empty?
+    //
+  }
+  ```
+- This interface defines only one method, GetArea. As a subtype of ConvexQuadrilateral we can define an interface Rectangle. This subtype has two sides involving its area, so we must provide SetA and SetB.
+- The next is actual implementations. The first one is Oblong, which can have wider width or wider height. In geometry, it is any rectangle that is not square. Implementing the logic for this struct is easy.
+- The second subtype of Rectangle is Square. In geometry, a square is a subtype of a rectangle, but if we follow this in software development, we can only make an issue in our implementation.
+- Square has all four equal sides. So, that makes SetB obsolete. To respect the subtyping we had chosen initially, we realized that our code has obsolete methods. The same issue is if we pick a slightly different path:
+  ```go
+  type ConvexQuadrilateral interface {
+    GetArea() int
+  }
+
+  type EquilateralRectangle interface {
+    ConvexQuadrilateral
+    SetA(a int)
+  }
+
+  type Oblong struct {
+    EquilateralRectangle
+    a int
+    b int
+  }
+
+  func (o *Oblong) SetA(a int) {
+    o.a = a
+  }
+
+  func (o *Oblong) SetB(b int) {
+    // where is this method defined?
+    o.b = b
+  }
+
+  func (o Oblong) GetArea() int {
+    return o.a * o.b
+  }
+
+  type Square struct {
+    EquilateralRectangle
+    a int
+  }
+
+  func (o *Square) SetA(a int) {
+    o.a = a
+  }
+
+  func (o Square) GetArea() int {
+    return o.a * o.a
+  }
+  ```
+- In the example above, instead of Rectangle, we introduced the EquilateralRectangle interface. In geometry, that should be a rectangle with all four equal sides.
+- In this case, when our interface defines only the SetA method, we avoided obsolete code in our implementation. Still, this breaks LSP, as we introduced an additional method SetB for Oblong, without which we can not calculate the area, even that our interface says we can.
+- So, we already started catching the idea of The Liskov Substitution Principle in Go. So we can summarize what can go wrong if we break it:
+  - It provides a false shortcut for implementation.
+  - It can cause obsolete code.
+  - It can damage the expected code execution.
+  - It can break the desired use case.
+  - It can cause an unmaintainable interface structure.
+
+### How we do respect The Liskov Substitution
+- So, let us first jump into fixing the issue for different implementations of the UserRepository interface:
+  ```go
+  type UserRepository interface {
+    Create(ctx context.Context, user User) (*User, error)
+    Update(ctx context.Context, user User) error
+  }
+
+  type MySQLUserRepository struct {
+    db *gorm.DB
+  }
+
+  type CassandraUserRepository struct {
+    session *gocql.Session
+  }
+
+  type UserCache interface {
+    Create(user User)
+    Update(user User)
+  }
+
+  type MemoryUserCache struct {
+    users map[uuid.UUID]User
+  }
+  ```
+- In this example, we split the interface into two, with clear purpose and signatures of different methods. Now, we have the UserRepository interface and the UserCache interface.
+- UserRepository purpose is now definitely to permanently store user data into some storage. For it, we prepared concrete implementations like MySQLUserRepository and CassandraUserRepository.
+- On the other hand, we have the UserCache interface with a clear understanding that we need it for temporarily keeping user data in some cache. As Concrete implementation, we can use MemoryUserCache.
+- Example:
+  ```go
+  type ConvexQuadrilateral interface {
+    GetArea() int
+  }
+
+  type EquilateralQuadrilateral interface {
+    ConvexQuadrilateral
+    SetA(a int)
+  }
+
+  type NonEquilateralQuadrilateral interface {
+    ConvexQuadrilateral
+    SetA(a int)
+    SetB(b int)
+  }
+
+  type NonEquiangularQuadrilateral interface {
+    ConvexQuadrilateral
+    SetAngle(angle float64)
+  }
+
+  type Oblong struct {
+    NonEquilateralQuadrilateral
+    a int
+    b int
+  }
+
+  type Square struct {
+    EquilateralQuadrilateral
+    a int
+  }
+
+  type Parallelogram struct {
+    NonEquilateralQuadrilateral
+    NonEquiangularQuadrilateral
+    a     int
+    b     int
+    angle float64
+  }
+
+  type Rhombus struct {
+    EquilateralQuadrilateral
+    NonEquiangularQuadrilateral
+    a     int
+    angle float64
+  }
+  ```
+- In this case, we introduced three new interfaces: EquilateralQuadrilateral (a quadrilateral with all four equal sides), NonEquilateralQuadrilateral (a quadrilateral with two pairs of equal sides), and NonEquiangularQuadrilateral (a quadrilateral with two pairs of equal angles).
+- Now, we can define a Square, with only the SetA method, Oblong with both SetA and SetB, and Parallelogram with all of them plus SetAngle. So, we did not use subtyping here, but more like features.
+- With both fixed examples, we restructured our code so it could always meet expectations from the end-user. It also removes obsolete methods and does not break any of them. The code is now stable.
+
+### Conclusion
+- The Liskov Substitution Principle teaches us what the correct way of subtyping is. We should never make forced polymorphism, even that it mirrors the real-world situtaions.
 
 
 **[⬆ back to top](#list-of-contents)**
