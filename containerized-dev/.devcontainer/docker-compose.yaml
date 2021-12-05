@@ -34,6 +34,6 @@ services:
       POSTGRES_DB: containerized_dev
       POSTGRES_PASSWORD: postgres
     ports:
-      - 5432:5432
+      - 3000:5432
 volumes:
   postgres-data:
