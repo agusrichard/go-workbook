@@ -8,6 +8,7 @@
 ### 3. [Practical SOLID in Golang: Single Responsibility Principle](#content-3)
 ### 4. [Practical SOLID in Golang: Open/Closed Principle](#content-4)
 ### 5. [Practical SOLID in Golang: Liskov Substitution Principle](#content-5)
+### 6. [Practical SOLID in Golang: Interface Segregation Principle](#content-6)
 
 
 </br>
@@ -962,8 +963,333 @@
 
 ---
 
+## [Practical SOLID in Golang: Interface Segregation Principle](https://betterprogramming.pub/7-code-patterns-in-go-i-cant-live-without-f46f72f58c4b) <span id="content-6"></span>
+
+### When we do not respect The Interface Segregation
+- Keep interfaces small so that users don’t end up depending on things they don’t need.
+- Snippet:
+  ```go
+  type User interface {
+    AddToShoppingCart(product Product)
+    IsLoggedIn() bool
+    Pay(money Money) error
+    HasPremium() bool
+    HasDiscountFor(product Product) bool
+    //
+    // some additional methods
+    //
+  }
+
+  type Guest struct {
+    cart ShoppingCart
+    //
+    // some additional fields
+    //
+  }
+
+  func (g *Guest) AddToShoppingCart(product Product) {
+    g.cart.Add(product)
+  }
+
+  func (g *Guest) IsLoggedIn() bool {
+    return false
+  }
+
+  func (g *Guest) Pay(Money) error {
+    return errors.New("user is not logged in")
+  }
+
+  func (g *Guest) HasPremium() bool {
+    return false
+  }
+
+  func (g *Guest) HasDiscountFor(Product) bool {
+    return false
+  }
+
+  type NormalCustomer struct {
+    cart   ShoppingCart
+    wallet Wallet
+    //
+    // some additional fields
+    //
+  }
+
+  func (c *NormalCustomer) AddToShoppingCart(product Product) {
+    c.cart.Add(product)
+  }
+
+  func (c *NormalCustomer) IsLoggedIn() bool {
+    return true
+  }
+
+  func (c *NormalCustomer) Pay(money Money) error {
+    return c.wallet.Deduct(money)
+  }
+
+  func (c *NormalCustomer) HasPremium() bool {
+    return false
+  }
+
+  func (c *NormalCustomer) HasDiscountFor(Product) bool {
+    return false
+  }
+
+  type PremiumCustomer struct {
+    cart     ShoppingCart
+    wallet   Wallet
+    policies []DiscountPolicy
+    //
+    // some additional fields
+    //
+  }
+
+  func (c *PremiumCustomer) AddToShoppingCart(product Product) {
+    c.cart.Add(product)
+  }
+
+  func (c *PremiumCustomer) IsLoggedIn() bool {
+    return true
+  }
+
+  func (c *PremiumCustomer) Pay(money Money) error {
+    return c.wallet.Deduct(money)
+  }
+
+  func (c *PremiumCustomer) HasPremium() bool {
+    return true
+  }
+
+  func (c *PremiumCustomer) HasDiscountFor(product Product) bool {
+    for _, p := range c.policies {
+      if p.IsApplicableFor(c, product) {
+        return true
+      }
+    }
+    
+    return false
+  }
+
+  type UserService struct {
+    //
+    // some fields
+    //
+  }
+
+  func (u *UserService) Checkout(ctx context.Context, user User, product Product) error {
+    if !user.IsLoggedIn() {
+      return errors.New("user is not logged in")	
+    }
+    
+    var money Money
+    //
+    // some calculation
+    //
+    if user.HasDiscountFor(product) {
+      //
+      // apply discount
+      //
+    }
+    
+    return user.Pay(money)
+  }
+  ```
+- The actual implementations for this interface are three structs. The first one is the Guest struct. It should be a User who is not logged in on our system, but at least they can add a Product to the ShoppingCart.
+- The second implementation is the NormalCustomer. It can do whatever Guest can, plus to buy a Product.
+- The third implementation is thePremiumCustomer, which can use all features of our system.
+- Now, look at all of those three structs. Only PremiumCustomer requires all three methods.
+- Maybe we can assign all of them to NormalCustomer, but definitely, we hardly need more than two for Guest.
+- Methods HasPremium and HasDiscountFor do not have any sense for Guest. If that struct represents the User who is not logged in, why would we even consider implementing methods for discounts?
+- And we did all of this to add generalization inside UserService to handle all types of Users in the same place, with the same code. But, because of that, we need to implement a bunch of unused methods.
+- So, to have better generalization, we got:
+  - Many structs with unused methods.
+  - Methods that we need somehow to mark so that others do not use them.
+  - Much additional code for unit testing.
+  - Unnatural polymorphism.
+
+### How we do respect The Interface Segregation
+- Build interfaces around the minimal cohesive group of features.
+- The only needed is to define a minimal interface that delivers a complete set of features.
+- Snippet:
+  ```go
+  type User interface {
+    AddToShoppingCart(product Product)
+    //
+    // some additional methods
+    //
+  }
+
+  type LoggedInUser interface {
+    User
+    Pay(money Money) error
+    //
+    // some additional methods
+    //
+  }
+
+  type PremiumUser interface {
+    LoggedInUser
+    HasDiscountFor(product Product) bool
+    //
+    // some additional methods
+    //
+  }
+
+  type Guest struct {
+    cart ShoppingCart
+    //
+    // some additional fields
+    //
+  }
+
+  func (g *Guest) AddToShoppingCart(product Product) {
+    g.cart.Add(product)
+  }
+
+  type NormalCustomer struct {
+    cart   ShoppingCart
+    wallet Wallet
+    //
+    // some additional fields
+    //
+  }
+
+  func (c *NormalCustomer) AddToShoppingCart(product Product) {
+    c.cart.Add(product)
+  }
+
+  func (c *NormalCustomer) Pay(money Money) error {
+    return c.wallet.Deduct(money)
+  }
+
+  type PremiumCustomer struct {
+    cart     ShoppingCart
+    wallet   Wallet
+    policies []DiscountPolicy
+    //
+    // some additional fields
+    //
+  }
+
+  func (c *PremiumCustomer) AddToShoppingCart(product Product) {
+    c.cart.Add(product)
+  }
+
+  func (c *PremiumCustomer) Pay(money Money) error {
+    return c.wallet.Deduct(money)
+  }
+
+  func (c *PremiumCustomer) HasDiscountFor(product Product) bool {
+    for _, p := range c.policies {
+      if p.IsApplicableFor(c, product) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  type UserService struct {
+    //
+    // some fields
+    //
+  }
+
+  func (u *UserService) Checkout(ctx context.Context, user User, product Product) error {
+    loggedIn, ok := user.(LoggedInUser)
+    if !ok {
+      return errors.New("user is not logged in")
+    }
+
+    var money Money
+    //
+    // some calculation
+    //
+    if premium, ok := loggedIn.(PremiumUser); ok && premium.HasDiscountFor(product)  {
+      //
+      // apply discount
+      //
+    }
+
+    return loggedIn.Pay(money)
+  }
+  ```
+- Now, instead of one, we have three interfaces. PremiumUser embeds LoggedInUser, which embeds User. In addition, each of them introduces one method.
+- The User now represents only customers who are still not authenticated on our platform. For such type, we know they can use features of ShoppingCart.
+- The new LoggedInUser interface represents all our authenticated customers, and thePremiumUser interface represents all authenticated customers with a paid premium account.
+- As you see in the UserService, instead of using methods with the boolean result, we just clarify the subtype of the User interface. If User implements LoggedInUser, we know that we talk about the authenticated customer.
+- Also, if User implements PremiumUser, we know that we talk about the customer with a premium account. So, by casting, we already check for some business rules.
+
+### Some more examples
+- Adding small interfaces to make them more straightforward but still implementing them together in the same struct does not make too much sense.
+- Snippet:
+  ```go
+  // too much splitting
+  type UserWithFirstName interface {
+    FirstName() string
+  }
+
+  type UserWithLastName interface {
+    LastName() string
+  }
+
+  type UserWithFullName interface {
+    FullName() string
+  }
+
+  // optimal splitting
+  type UserWithName interface {
+    FirstName() string
+      LastName() string
+      FullName() string
+  }
+  ```
+- Obviously, if a customer is registered on our platform, they will need to provide their first and last name for billing purposes. So, our User will need both FirstName and LastName methods, and with that, naturally, FullName.
+- A good example of one-method interface:
+  ```go
+  package io
+
+  type Reader interface {
+    Read(p []byte) (n int, err error)
+  }
+
+  type Writer interface {
+    Write(p []byte) (n int, err error)
+  }
+
+  type Closer interface {
+    Close() error
+  }
+
+  type Seeker interface {
+    Seek(offset int64, whence int) (int64, error)
+  }
+
+  type WriteCloser interface {
+    Writer
+    Closer
+  }
+
+  type ReadWriteCloser interface {
+    Reader
+    Writer
+    Closer
+  }
+
+  //.... and so on
+  ```
+- The Interface Segregation Principle is the fourth SOLID principle, and it stands for the letter I in the word SOLID. It teaches us to make our interfaces as tiny as possible.
+
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
+
 ## References:
 - https://betterprogramming.pub/7-code-patterns-in-go-i-cant-live-without-f46f72f58c4b
 - https://medium.com/@michalkowal567/rules-pattern-in-golang-425765f3c646
 - https://levelup.gitconnected.com/practical-solid-in-golang-single-responsibility-principle-20afb8643483
 - https://levelup.gitconnected.com/practical-solid-in-golang-open-closed-principle-1dd361565452
+- https://levelup.gitconnected.com/practical-solid-in-golang-interface-segregation-principle-f272c2a9a270
