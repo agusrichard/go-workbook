@@ -9,6 +9,7 @@
 ### 4. [Practical SOLID in Golang: Open/Closed Principle](#content-4)
 ### 5. [Practical SOLID in Golang: Liskov Substitution Principle](#content-5)
 ### 6. [Practical SOLID in Golang: Interface Segregation Principle](#content-6)
+### 7. [Practical SOLID in Golang: Dependency Inversion Principle](#content-7)
 
 
 </br>
@@ -1279,6 +1280,327 @@
   //.... and so on
   ```
 - The Interface Segregation Principle is the fourth SOLID principle, and it stands for the letter I in the word SOLID. It teaches us to make our interfaces as tiny as possible.
+
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
+
+## [Practical SOLID in Golang: Dependency Inversion Principle](https://levelup.gitconnected.com/practical-solid-in-golang-dependency-inversion-principle-8cbd4eed484b) <span id="content-7"></span>
+
+### When we do not respect The Dependency Inversion
+- High-level modules should not depend on low-level modules. Both should depend on abstractions. Abstractions should not depend on details. Details should depend on abstractions.
+- First, we should accept Abstraction as an OOP concept. We use such a concept to expose essential behaviors and hide details of their implementation.
+- High-level modules in the Go context are software components used on the top of the application, like code used for presentation. It can also be a code close to the top level, like code for business logic or some use case components.
+- On the other hand, low-level software components are mostly small code pieces that support the higher level. They hide technical details about different infrastructural integrations. For example, that can be a struct that keeps the logic for retrieving data from the database, sending an SQS message, fetching a value from Redis, or sending an HTTP request to an external API.
+- Snippet:
+  ```go
+  // infrastructure layer
+
+  type UserRepository struct {
+    db *gorm.DB
+  }
+
+  func NewUserRepository(db *gorm.DB) *UserRepository {
+    return &UserRepository{
+      db: db,
+    }
+  }
+
+  func (r *UserRepository) GetByID(id uint) (*domain.User, error) {
+    user := domain.User{}
+    err := r.db.Where("id = ?", id).First(&user).Error
+    if err != nil {
+      return nil, err
+    }
+
+    return &user, nil
+  }
+
+  // domain layer
+
+  type User struct {
+    ID uint `gorm:"primaryKey;column:id"`
+    // some fields
+  }
+
+  // application layer
+
+  type EmailService struct {
+    repository *infrastructure.UserRepository
+    // some email sender
+  }
+
+  func NewEmailService(repository *infrastructure.UserRepository) *EmailService {
+    return &EmailService{
+      repository: repository,
+    }
+  }
+
+  func (s *EmailService) SendRegistrationEmail(userID uint) error {
+    user, err := s.repository.GetByID(userID)
+    if err != nil {
+      return err
+    }
+    // send email
+    return nil
+  }
+  ```
+- In the code snippet from above, we defined a high-level component, EmailService. This struct belongs to the application layer, and it is responsible for sending an email to fresh registered customers.
+- So, it appears that our high-level component, EmailService, depends on the low-level component, UserRepository. Practically, without defining connection to the database, we can not initiate our use case struct.
+- Unit test snippet:
+  ```go
+  import (
+    "testing"
+    // some dependencies
+    "github.com/DATA-DOG/go-sqlmock"
+    "github.com/stretchr/testify/assert"
+    "gorm.io/driver/mysql"
+    "gorm.io/gorm"
+  )
+
+  func TestEmailService_SendRegistrationEmail(t *testing.T) {
+    db, mock, err := sqlmock.New()
+    assert.NoError(t, err)
+
+    dialector := mysql.New(mysql.Config{
+      DSN:        "dummy",
+      DriverName: "mysql",
+      Conn:       db,
+    })
+    finalDB, err := gorm.Open(dialector, &gorm.Config{})
+    
+    repository := infrastructure.NewUserRepository(finalDB)
+    service := NewEmailService(repository)
+    //
+    // a lot of code to define mocked SQL queries
+    //
+    // and then actual test
+  }
+  ```
+- Mocking in Go relies on the usage of interfaces, for which we can define a mocked implementation, but we can not do the same for structs.
+- So, we can not mock UserRepository, as it is a struct.
+- But what about abstractions that rely on details? Let us check the code below:
+  ```go
+  // domain layer
+
+  type User struct {
+    ID uint `gorm:"primaryKey;column:id"`
+    // some fields
+  }
+
+  type UserRepository interface {
+    GetByID(id uint) (*User, error)
+  }
+  ```
+- Look at the User struct. It still poses a definition for mapping to the database.
+And, even if such a struct is inside the domain layer, it still possesses infrastructural details.
+- Our new interface UserRepository (abstraction) depends on the User struct with the database scheme (details), and we still break DIP.
+- Any change to the database engine or table structure affects our highest levels.
+
+### How we do respect The Dependency Inversion
+- High-level modules should not depend on low-level modules. Both should depend on abstractions. Abstractions should not depend on details. Details should depend on abstractions.
+- We should define some abstraction (an interface) on which both of our components, EmailService and UserRepository, will depend.
+- In addition, such abstraction should not rely on any technical details (like Gorm object).
+- Snippet:
+  ```go
+  // infrastructure layer
+
+  type UserGorm struct {
+    // some fields
+  }
+
+  func (g UserGorm) ToUser() *domain.User {
+    return &domain.User{
+      // some fields
+    }
+  }
+
+  type UserDatabaseRepository struct {
+    db *gorm.DB
+  }
+
+  var _ domain.UserRepository = &UserDatabaseRepository{}
+
+  /*
+  type UserRedisRepository struct {
+    
+  }
+  type UserCassandraRepository struct {
+  }
+  */
+
+  func NewUserDatabaseRepository(db *gorm.DB) UserRepository {
+    return &UserDatabaseRepository{
+      db: db,
+    }
+  }
+
+  func (r *UserDatabaseRepository) GetByID(id uint) (*domain.User, error) {
+    user := UserGorm{}
+    err := r.db.Where("id = ?", id).First(&user).Error
+    if err != nil {
+      return nil, err
+    }
+
+    return user.ToUser(), nil
+  }
+
+  // domain layer
+
+  type User struct {
+    // some fields
+  }
+
+  type UserRepository interface {
+    GetByID(id uint) (*User, error)
+  }
+
+  // application layer
+
+  type EmailService struct {
+    repository domain.UserRepository
+    // some email sender
+  }
+
+  func NewEmailService(repository domain.UserRepository) *EmailService {
+    return &EmailService{
+      repository: repository,
+    }
+  }
+
+  func (s *EmailService) SendRegistrationEmail(userID uint) error {
+    user, err := s.repository.GetByID(userID)
+    if err != nil {
+      return err
+    }
+    // send email
+    return nil
+  }
+  ```
+- In the new code structure, we can see the UserRepository interface as a component that depends on the User struct, and both of them are inside the domain layer.
+- The User struct does not reflect the database scheme anymore, but we use the UserGorm struct for that. That struct is on the infrastructure layer. It provides a method ToUser that maps it to the actual User struct.
+- In this scenario, we can use UserGorm as part of the details used inside UserDatabaseRepository, as actual implementation for UserRepository.
+- Inside the infrastructure layer, we can define as many implementations for UserRepository, as we want. That can be UserFileRepository or UserCassandraRepository, for example.
+- The high-level component (EmailService) depends on abstraction — it contains a field with the type UserRepository. Still, how does low-level component depends on abstraction?
+- In Go, structs implement interfaces implicitly. That means we do not need to add a code where UserDatabaseRepository explicitly implements UserRepository, but we can add a check with a blank identifier.
+- Unit test snippet:
+  ```go
+  import (
+    "errors"
+    "testing"
+  )
+
+  type GetByIDFunc func(id uint) (*User, error)
+
+  func (f GetByIDFunc) GetByID(id uint) (*User, error) {
+    return f(id)
+  }
+
+  func TestEmailService_SendRegistrationEmail(t *testing.T) {
+    service := NewEmailService(GetByIDFunc(func(id uint) (*User, error) {
+      return nil, errors.New("error")
+    }))
+    //
+    // and just to call the service
+  }
+  ```
+
+### Some more examples
+- Example 1:
+  ```go
+  type User struct {
+    // some fields
+  }
+
+  type UserJSON struct {
+    // some fields
+  }
+
+  func (j UserJSON) ToUser() *User {
+    return &User{
+      // some fields
+    }
+  }
+
+  func GetUser(id uint) (*User, error) {
+    filename := fmt.Sprintf("user_%d.json", id)
+    data, err := ioutil.ReadFile(filename)
+    if err != nil {
+      return nil, err
+    }
+    
+    var user UserJSON
+    err = json.Unmarshal(data, &user)
+    if err != nil {
+      return nil, err
+    }
+    
+    return user.ToUser(), nil
+  }
+  ```
+- Full snippet:
+  ```go
+  type User struct {
+  // some fields
+  }
+
+  type UserJSON struct {
+    // some fields
+  }
+
+  func (j UserJSON) ToUser() *User {
+    return &User{
+      // some fields
+    }
+  }
+
+  func GetUserFile(id uint) (io.Reader, error) {
+    filename := fmt.Sprintf("user_%d.json", id)
+    file, err := os.Open(filename)
+    if err != nil {
+      return nil, err
+    }
+
+    return file, nil
+  }
+
+  func GetUserHTTP(id uint) (io.Reader, error) {
+    uri := fmt.Sprintf("http://some-api.com/users/%d", id)
+    resp, err := http.Get(uri)
+    if err != nil {
+      return nil, err
+    }
+
+    return resp.Body, nil
+  }
+
+  func GetDummyUser(userJSON UserJSON) (io.Reader, error) {
+    data, err := json.Marshal(userJSON)
+    if err != nil {
+      return nil, err
+    }
+
+    return bytes.NewReader(data), nil
+  }
+
+  func GetUser(reader io.Reader) (*User, error) {
+    data, err := ioutil.ReadAll(reader)
+    if err != nil {
+      return nil, err
+    }
+
+    var user UserJSON
+    err = json.Unmarshal(data, &user)
+    if err != nil {
+      return nil, err
+    }
+
+    return user.ToUser(), nil
+  }
+  ```
 
 
 **[⬆ back to top](#list-of-contents)**
