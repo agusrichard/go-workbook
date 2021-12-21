@@ -10,6 +10,7 @@
 ### 5. [Practical SOLID in Golang: Liskov Substitution Principle](#content-5)
 ### 6. [Practical SOLID in Golang: Interface Segregation Principle](#content-6)
 ### 7. [Practical SOLID in Golang: Dependency Inversion Principle](#content-7)
+### 8. [Practical DDD in Golang: Repository](#content-8)
 
 
 </br>
@@ -1601,6 +1602,413 @@ And, even if such a struct is inside the domain layer, it still possesses infras
     return user.ToUser(), nil
   }
   ```
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
+
+
+## [Practical DDD in Golang: Repository](https://levelup.gitconnected.com/practical-ddd-in-golang-repository-d308c9d79ba7) <span id="content-8"></span>
+
+### The Anti-Corruption Layer
+- As the domain layer is the one on the bottom and does not communicate with others, we define the Repository inside it but as an interface.
+- Example:
+  ```go
+  import (
+    "context"
+
+    "github.com/google/uuid"
+  )
+
+  type Customer struct {
+    ID uuid.UUID
+    //
+    // some fields
+    //
+  }
+
+  type Customers []Customer
+
+  type CustomerRepository interface {
+    GetCustomer(ctx context.Context, ID uuid.UUID) (*Customer, error)
+    SearchCustomers(ctx context.Context, specification CustomerSpecification) (Customers, int, error)
+    SaveCustomer(ctx context.Context, customer Customer) (*Customer, error)
+    UpdateCustomer(ctx context.Context, customer Customer) (*Customer, error)
+    DeleteCustomer(ctx context.Context, ID uuid.UUID) (*Customer, error)
+  }
+  ```
+- That interface we call a Contract that defines the method signatures we can call inside our domain.
+- As we defined Repository as such interface, we can use it everywhere inside the domain layer.
+- It always expects and returns us our Entities, in this case, Customer and Customers (I like to define such particular collections in Go to attach different methods to them).
+- The Entity Customer does not hold any information about the type of storage below: there is no Go tag defining JSON structure, Gorm columns, or anything similar. For that, we must use the infrastructure layer.
+  ```go
+  // domain layer
+
+  type CustomerRepository interface {
+    GetCustomer(ctx context.Context, ID uuid.UUID) (*Customer, error)
+    SearchCustomers(ctx context.Context, specification CustomerSpecification) (Customers, int, error)
+    SaveCustomer(ctx context.Context, customer Customer) (*Customer, error)
+    UpdateCustomer(ctx context.Context, customer Customer) (*Customer, error)
+    DeleteCustomer(ctx context.Context, ID uuid.UUID) (*Customer, error)
+  }
+
+  // infrastructure layer
+
+  import (
+    "context"
+
+    "github.com/google/uuid"
+    "gorm.io/gorm"
+  )
+
+  type CustomerGorm struct {
+    ID   uint   `gorm:"primaryKey;column:id"`
+    UUID string `gorm:"uniqueIndex;column:uuid"`
+    //
+    // some fields
+    //
+  }
+
+  func (c CustomerGorm) ToEntity() (model.Customer, error) {
+    parsed, err := uuid.Parse(c.UUID)
+    if err != nil {
+      return Customer{}, err
+    }
+    
+    return model.Customer{
+      ID: parsed,
+      //
+      // some fields
+      //
+    }, nil
+  }
+
+  type CustomerRepository struct {
+    connection *gorm.DB
+  }
+
+  func (r *CustomerRepository) GetCustomer(ctx context.Context, ID uuid.UUID) (*model.Customer, error) {
+    var row CustomerGorm
+    err := r.connection.WithContext(ctx).Where("uuid = ?", ID).First(&row).Error
+    if err != nil {
+      return nil, err
+    }
+    
+    customer, err := row.ToEntity()
+    if err != nil {
+      return nil, err
+    }
+    
+    return &customer, nil
+  }
+  //
+  // other methods
+  //
+  ```
+- In the example, you see two different structures, Customer and CustomerGorm. The first one is Entity, where we want to keep our business logic, some domain invariants, and rules. It does not know anything about the underlying database.
+- The second structure is a Data Transfer Object, which defines how our data is transferred from and to storage. This structure does not have any other responsibility but to map the database’s data to our Entity.
+- The division of those two structures is the fundamental point for using Repository as Anti-Corruption layer in our application. It makes sure that technical details of table structure do not pollute our business logic.
+- What are the consequences here? First, it is the truth that we need to maintain two types of structures, one for business logic, one for storage. 
+- In addition, I insert the third structure as well, the one I use as Data Transfer Object for my API.
+- Example:
+  ```go
+  // domain layer
+
+  type Customer struct {
+    ID      uuid.UUID
+    Person  *Person
+    Company *Company
+    Address Address
+  }
+
+  type Person struct {
+    SSN       string
+    FirstName string
+    LastName  string
+    Birthday  Birthday
+  }
+
+  type Birthday time.Time
+
+  type Company struct {
+    Name               string
+    RegistrationNumber string
+    RegistrationDate   time.Time
+  }
+
+  type Address struct {
+    Street   string
+    Number   string
+    Postcode string
+    City     string
+  }
+
+  // infrastructure layer
+
+  type CustomerGorm struct {
+    ID        uint         `gorm:"primaryKey;column:id"`
+    UUID      string       `gorm:"uniqueIndex;column:id"`
+    PersonID  uint         `gorm:"column:person_id"`
+    Person    *PersonGorm  `gorm:"foreignKey:PersonID"`
+    CompanyID uint         `gorm:"column:company_id"`
+    Company   *CompanyGorm `gorm:"foreignKey:CompanyID"`
+    Street    string       `gorm:"column:street"`
+    Number    string       `gorm:"column:number"`
+    Postcode  string       `gorm:"column:postcode"`
+    City      string       `gorm:"column:city"`
+  }
+
+  func (c CustomerGorm) ToEntity() (model.Customer, error) {
+    parsed, err := uuid.Parse(c.UUID)
+    if err != nil {
+      return model.Customer{}, err
+    }
+
+    return model.Customer{
+      ID:      parsed,
+      Person:  c.Person.ToEntity(),
+      Company: c.Company.ToEntity(),
+      Address: Address{
+        Street:   c.Street,
+        Number:   c.Number,
+        Postcode: c.Postcode,
+        City:     c.City,
+      },
+    }, nil
+  }
+
+  type PersonGorm struct {
+    ID        uint      `gorm:"primaryKey;column:id"`
+    SSN       string    `gorm:"uniqueIndex;column:ssn"`
+    FirstName string    `gorm:"column:first_name"`
+    LastName  string    `gorm:"column:last_name"`
+    Birthday  time.Time `gorm:"column:birthday"`
+  }
+
+  func (p *PersonGorm) ToEntity() *model.Person {
+    if p == nil {
+      return nil
+    }
+
+    return &model.Person{
+      SSN:       p.SSN,
+      FirstName: p.FirstName,
+      LastName:  p.LastName,
+      Birthday:  Birthday(p.Birthday),
+    }
+  }
+
+  type CompanyGorm struct {
+    ID                 uint      `gorm:"primaryKey;column:id"`
+    Name               string    `gorm:"column:name"`
+    RegistrationNumber string    `gorm:"column:registration_number"`
+    RegistrationDate   time.Time `gorm:"column:registration_date"`
+  }
+
+  func (c *CompanyGorm) ToEntity() *model.Company {
+    if c == nil {
+      return nil
+    }
+
+    return &model.Company{
+      Name:               c.Name,
+      RegistrationNumber: c.RegistrationNumber,
+      RegistrationDate:   c.RegistrationDate,
+    }
+  }
+
+  func NewRow(customer model.Customer) CustomerGorm {
+    var person *PersonGorm
+    if customer.Person != nil {
+      person = &PersonGorm{
+        SSN:       customer.Person.SSN,
+        FirstName: customer.Person.FirstName,
+        LastName:  customer.Person.LastName,
+        Birthday:  time.Time(customer.Person.Birthday),
+      }
+    }
+
+    var company *CompanyGorm
+    if customer.Company != nil {
+      company = &CompanyGorm{
+        Name:               customer.Company.Name,
+        RegistrationNumber: customer.Company.RegistrationNumber,
+        RegistrationDate:   customer.Company.RegistrationDate,
+      }
+    }
+
+    return CustomerGorm{
+      UUID:     uuid.NewString(),
+      Person:   person,
+      Company:  company,
+      Street:   customer.Address.Street,
+      Number:   customer.Address.Number,
+      Postcode: customer.Address.Postcode,
+      City:     customer.Address.City,
+    }
+  }
+  ```
+- Still, besides whole this maintenance, it brings new value to our code. We can provide our Entities inside the domain layer in a way that describes our business logic the best. We do not limit them with the storage we use.
+
+### Persistence
+- The second feature of the Repository is Persistence. We define the logic for sending our data into the storage below to keep it permanently, update, or even delete.
+- Example:
+  ```go
+  func NewRow(customer Customer) CustomerGorm {
+    return CustomerGorm{
+      UUID: uuid.NewString(),
+      //
+      // some fields
+      //
+    }
+  }
+
+  type CustomerRepository struct {
+    connection *gorm.DB
+  }
+
+  func (r *CustomerRepository) SaveCustomer(ctx context.Context, customer Customer) (*Customer, error) {
+    row := NewRow(customer)
+    err := r.connection.WithContext(ctx).Save(&row).Error
+    if err != nil {
+      return nil, err
+    }
+
+    customer, err = row.ToEntity()
+    if err != nil {
+      return nil, err
+    }
+
+    return &customer, nil
+  }
+  //
+  // other methods
+  //
+  ```
+- Sometimes we decide to have unique identifiers that we want to create within an application. In such cases, the Repository is the right place. In the example above, you can see that we generate a new UUID before creating the database record.
+- We can do this with integers if we want to avoid auto-incrementing from the database engine. In any case, if we do not wish to rely on database keys, we should create them inside Repository.
+  ```go
+  type CustomerRepository struct {
+    connection *gorm.DB
+  }
+
+  func (r *CustomerRepository) CreateCustomer(ctx context.Context, customer Customer) (*Customer, error) {
+    tx := r.connection.Begin()
+    defer func() {
+      if r := recover(); r != nil {
+        tx.Rollback()
+      }
+    }()
+
+    if err := tx.Error; err != nil {
+      return nil, err
+    }
+
+    //
+    // some code
+    //
+
+    var total int64
+    var err error
+    if customer.Person != nil {
+      err = tx.Model(PersonGorm{}).Where("ssn = ?", customer.Person.SSN).Count(&total).Error
+    } else if customer.Person != nil {
+      err = tx.Model(CompanyGorm{}).Where("registration_number = ?", customer.Person.SSN).Count(&total).Error
+    }
+    if err != nil {
+      tx.Rollback()
+      return nil, err
+    } else if total > 0 {
+      tx.Rollback()
+      return nil, errors.New("there is already such record in DB")
+    }
+    
+    //
+    // some code
+    //
+    
+    err = tx.Save(&row).Error
+    if err != nil {
+      tx.Rollback()
+      return nil, err
+    }
+
+    err = tx.Commit().Error
+    if err != nil {
+      tx.Rollback()
+      return nil, err
+    }
+
+    customer := row.ToEntity()
+
+    return &customer, nil
+  }
+  ```
+- The other thing we want the Repository to use for is transactions. Whenever we want to persist some data and execute many queries that work on the same extensive set of tables, it is an excellent time to define a transaction, which we should deliver inside the Repository.
+- In the example from above, we are checking the uniqueness of Person or Company. If they exist, we return an error. All of that we can define as part of a single transaction, and if something fails there, we can roll back it.
+- Here Repository is a perfect place for such code. It is good that we can also make our inserts more straightforward in the future so that we will not need transactions at all. In that case, we do not change a Contract of the Repository, but only the code inside.
+
+### Types of Repositories
+- As mentioned, we can use MongoDB or Cassandra. We can use a Repository for keeping our cache, and in that case, it would be Redis, for example. It can even be REST API or configurational file.
+- Example:
+  ```go
+  // redis repository
+
+  type CustomerRepository struct {
+    client *redis.Client
+  }
+
+  func (r *CustomerRepository) GetCustomer(ctx context.Context, ID uuid.UUID) (*Customer, error) {
+    data, err := r.client.Get(ctx, fmt.Sprintf("user-%s", ID.String())).Result()
+    if err != nil {
+      return nil, err
+    }
+
+    var row CustomerJSON
+    err = json.Unmarshal([]byte(data), &row)
+    if err != nil {
+      return nil, err
+    }
+    
+    customer := row.ToEntity()
+
+    return &customer, nil
+  }
+
+  // API
+
+  type CustomerRepository struct {
+    client *http.Client
+    baseUrl string
+  }
+
+  func (r *CustomerRepository) GetCustomer(ctx context.Context, ID uuid.UUID) (*Customer, error) {
+    resp, err := r.client.Get(path.Join(r.baseUrl, "users", ID.String()))
+    if err != nil {
+      return nil, err
+    }
+    
+    data, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+      return nil, err
+    }
+    defer resp.Body.Close()
+
+    var row CustomerJSON
+    err = json.Unmarshal(data, &row)
+    if err != nil {
+      return nil, err
+    }
+
+    customer := row.ToEntity()
+
+    return &customer, nil
+  }
+  ```
+- Now we can see the real benefit of having a split between our business logic and technical details. We keep the same interface for our Repository, so our domain layer can always use it.
+- So, your Repository Contract should always deal with your business logic, but your Repository implementation must use internal structures that you can map later to Entities.
 
 
 **[⬆ back to top](#list-of-contents)**
