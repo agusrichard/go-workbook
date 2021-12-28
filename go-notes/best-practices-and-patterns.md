@@ -6,6 +6,7 @@
 ### 1. [7 Code Patterns in Go I Can’t Live Without](#content-1)
 ### 2. [Rules pattern in Golang](#content-2)
 ### 3. [Practical DDD in Golang: Repository](#content-3)
+### 4. [Wrappers and decorators in Golang](#content-4)
 
 
 </br>
@@ -616,6 +617,130 @@
 - Now we can see the real benefit of having a split between our business logic and technical details. We keep the same interface for our Repository, so our domain layer can always use it.
 - So, your Repository Contract should always deal with your business logic, but your Repository implementation must use internal structures that you can map later to Entities.
 
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
+
+## [Wrappers and decorators in Golang](https://levelup.gitconnected.com/wrappers-and-decorators-in-golang-c8cbe1359932) <span id="content-4"></span>
+
+
+### Introduction
+- The most basic form of function wrapping is passing the function you want to wrap to another function as parameter.
+- Example:
+  ```go
+  package main
+  import (
+    "fmt"
+  )
+  func main() {
+    print(1, 2, sum)
+  }
+  func sum(a, b int) int {
+    return a + b
+  }
+  func print(a, b int, f func(int, int) int) {
+    fmt.Printf("inputs: %d, %d\n", a, b)
+    res := f(a, b)
+    fmt.Printf("result: %d\n", res)
+  }
+  ```
+- Another option is to use closures to implement similar functionality. Closure functions are function created within another function’s scope.
+- Example:
+  ```go
+  package main
+  import (
+  "fmt"
+  )
+  func main() {
+  a := 1
+  b := 2
+  fmt.Println("Sum:")
+  print(a, b, sum)
+  fmt.Println("\nMultiply:")
+  print(a, b, multiply)
+  msg:="variable from outer scope"
+  s := func(x, y int) int {
+    fmt.Println(msg)
+    return x - y
+  }
+  fmt.Println("\nSubtract:")
+  print(a, b, s)
+  }
+  func sum(a, b int) int {
+  return a + b
+  }
+  func multiply(a, b int) int {
+  return a * b
+  }
+  func print(a, b int, f func(int, int) int) {
+  fmt.Printf("inputs: %d, %d\n", a, b)
+  res := f(a, b)
+  fmt.Printf("result: %d\n", res)
+  }
+  ```
+
+### Dependency injection
+- In cases where we need to receive an extra dependency we can wrap the function we want to execute in another function that receives the dependency as a parameter, returning a function with the exact signature we need.
+
+### The decorator pattern
+- Example:
+  ```go
+  package cmd
+
+  import (
+    "log"
+    "os"
+
+    "github.com/RicardoLinck/decorators/cache"
+    "github.com/RicardoLinck/decorators/service"
+  )
+
+  type runner interface {
+    GetData(keys ...string) error
+  }
+
+  type defaultRunner struct {
+    url string
+  }
+
+  func (d *defaultRunner) GetData(keys ...string) error {
+    c := service.NewClient(d.url)
+
+    cc := cache.NewCachedDataGetter(c)
+    for _, k := range keys {
+      log.Print(cc.GetData(k))
+    }
+
+    return nil
+  }
+
+  type dryRunner struct {
+    runner
+  }
+
+  func (d *dryRunner) GetData(keys ...string) error {
+    log.Default().SetOutput(os.Stdout)
+    return d.runner.GetData(keys...)
+  }
+
+  type fileRunner struct {
+    runner
+    filePath string
+  }
+
+  func (f *fileRunner) GetData(keys ...string) error {
+    file, err := os.Create(f.filePath)
+    if err != nil {
+      return err
+    }
+
+    log.Default().SetOutput(file)
+    return f.runner.GetData(keys...)
+  }
+  ```
 
 **[⬆ back to top](#list-of-contents)**
 
