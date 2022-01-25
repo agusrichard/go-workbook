@@ -3,7 +3,9 @@
 </br>
 
 ## [List of Contents:](#list-of-contents)
-### 1. [Guiding principles](#content-1)
+### [1. Guiding principles](#content-1)
+### [2. Identifiers](#content-2)
+### [3. Comments](#content-3)
 
 
 </br>
@@ -13,7 +15,6 @@
 ## Contents:
 
 ## [1. Guiding principles](https://dave.cheney.net/practical-go/presentations/qcon-china.html#_guiding_principles) <span id="content-1"></span>
-
 ### Introduction
 
 > Software engineering is what happens to programming when you add time and other programmers. -- Russ Cox
@@ -52,6 +53,13 @@
 - Developer productivity is a sprawling topic but it boils down to this; how much time do you spend doing useful work verses waiting for your tools or hopelessly lost in a foreign code-base. Go programmers should feel that they can get a lot done with Go.
 - More fundamental to the question of developer productivity, Go programmers realise that code is written to be read and so place the act of reading code above the act of writing it.
 - Productivity is what the Go team mean when they say the language must scale.
+
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
 
 ## [2. Identifiers](https://dave.cheney.net/practical-go/presentations/qcon-china.html#_identifiers) <span id="content-2"></span>
 
@@ -170,11 +178,165 @@
   var thing *Thing = new(Thing)
   json.Unmarshall(reader, thing)
   ```
+- You can't declare a variable to be nil, because nil does not have a type.  Instead we have a choice, do we want the zero value for a slice?
+  ```go
+  // Zero value for a slice
+  var things []Thing
+
+  // A slice with zero value
+  var things = make([]Thing, 0)
+  ```
+- Therefore it's better to use short declaration form:
+  ```go
+  things := make([]Thing, 0)
+  ```
+- A pointer of a Thing:
+  ```go
+  // Pointer of a Thing
+  thing := new(Thing)
+
+  // It's better to use compact literal struct initialiser form
+  thing := &Thing{}
+  ```
 - In summary:
   - When declaring a variable without initialisation, use the var syntax.
   - When declaring and explicitly initialising a variable, use :=.
 
 > My advice in this situation is to follow the local style.
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
+
+## [3. Comments](https://dave.cheney.net/practical-go/presentations/qcon-china.html#_comments) <span id="content-3"></span>
+
+> Good code has lots of comments, bad code requires lots of comments. — Dave Thomas and Andrew Hunt. The Pragmatic Programmer
+
+- Each comments should do one—​and only one—​of three things:
+  - The comment should explain what the thing does.
+  - The comment should explain how the thing does what it does.
+  - The comment should explain why the thing is why it is.
+- The first form is ideal for commentary on public symbols:
+  ```go
+  // Open opens the named file for reading.
+  // If successful, methods on the returned file can be used for reading.
+  ```
+- The second form is ideal for commentary inside a method:
+  ```go
+  // queue all dependant actions
+  var results []chan error
+  for _, dep := range a.Deps {
+          results = append(results, execute(seen, dep))
+  }
+  ```
+- The third form, the why , is unique as it does not displace the first two, but at the same time it’s not a replacement for the what, or the how. The why style of commentary exists to explain the external factors that drove the code you read on the page. Frequently those factors rarely make sense taken out of context, the comment exists to provide that context.
+  ```go
+  return &v2.Cluster_CommonLbConfig{
+    // Disable HealthyPanicThreshold
+      HealthyPanicThreshold: &envoy_type.Percent{
+        Value: 0,
+      },
+  }
+  ```
+- In this example it may not be immediately clear what the effect of setting HealthyPanicThreshold to zero percent will do. The comment is needed to clarify that the value of 0 will disable the panic threshold behaviour.
+
+### 3.1. Comments on variables and constants should describe their contents not their purpose
+- When you add a comment to a variable or constant, that comment should describe the variables contents, not the variables purpose.
+  ```go
+  const randomNumber = 6 // determined from an unbiased die
+  ```
+- More examples:
+  ```go
+  const (
+      StatusContinue           = 100 // RFC 7231, 6.2.1
+      StatusSwitchingProtocols = 101 // RFC 7231, 6.2.2
+      StatusProcessing         = 102 // RFC 2518, 10.1
+
+      StatusOK                 = 200 // RFC 7231, 6.3.1
+  ```
+- For variables without an initial value, the comment should describe who is responsible for initialising this variable.
+  ```go
+  // sizeCalculationDisabled indicates whether it is safe
+  // to calculate Types' widths and alignments. See dowidth.
+  var sizeCalculationDisabled bool
+  ```
+- This is a tip from Kate Gregory. Sometimes you’ll find a better name for a variable hiding in a comment. Now the comment is redundant and can be removed.
+  ```go
+  // registry of SQL drivers. But registry of what?
+  var registry = make(map[string]*sql.Driver)
+
+  // By renaming the variable to sqlDrivers its now clear that the purpose of this variable is to hold SQL drivers. Now the comment is redundant and can be removed.
+  var sqlDrivers = make(map[string]*sql.Driver)
+  ```
+
+### 3.2. Always document public symbols
+- Here are two rules from the Google Style guide
+  - Any public function that is not both obvious and short must be commented.
+  - Any function in a library must be commented regardless of length or complexity
+- Example:
+  ```go
+  package ioutil
+
+  // ReadAll reads from r until an error or EOF and returns the data it read.
+  // A successful call returns err == nil, not err == EOF. Because ReadAll is
+  // defined to read from src until EOF, it does not treat an EOF from Read
+  // as an error to be reported.
+  func ReadAll(r io.Reader) ([]byte, error)
+  ```
+- There is one exception to this rule; you don’t need to document methods that implement an interface. Specifically don’t do this:
+  ```go
+  // Read implements the io.Reader interface
+  func (r *FileReader) Read(buf []byte) (int, error)
+  ```
+- Example from the io package:
+  ```go
+  // LimitReader returns a Reader that reads from r
+  // but stops with EOF after n bytes.
+  // The underlying implementation is a *LimitedReader.
+  func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n} }
+
+  // A LimitedReader reads from R but limits the amount of
+  // data returned to just N bytes. Each call to Read
+  // updates N to reflect the new amount remaining.
+  // Read returns EOF when N <= 0 or when the underlying R returns EOF.
+  type LimitedReader struct {
+    R Reader // underlying reader
+    N int64  // max bytes remaining
+  }
+
+  func (l *LimitedReader) Read(p []byte) (n int, err error) {
+    if l.N <= 0 {
+      return 0, EOF
+    }
+    if int64(len(p)) > l.N {
+      p = p[0:l.N]
+    }
+    n, err = l.R.Read(p)
+    l.N -= int64(n)
+    return
+  }
+  ```
+- Note that the LimitedReader declaration is directly preceded by the function that uses it, and the declaration of LimitedReader.Read follows the declaration of LimitedReader itself. Even though LimitedReader.Read has no documentation itself, its clear from that it is an implementation of io.Reader.
+- TIP: Before you write the function, write the comment describing the function. If you find it hard to write the comment, then it’s a sign that the code you’re about to write is going to be hard to understand.
+
+### 3.2.1. Don’t comment bad code, rewrite it
+> Don’t comment bad code — rewrite it — Brian Kernighan
+
+- Comments highlighting the grossness of a particular piece of code are not sufficient. If you encounter one of these comments, you should raise an issue as a reminder to refactor it later. It is okay to live with technical debt, as long as the amount of debt is known.
+- The tradition in the standard library is to annotate a TODO style comment with the username of the person who noticed it.
+  ```
+  // TODO(dfc) this is O(N^2), find a faster way to do this.
+  ```
+- The username is not a promise that that person has committed to fixing the issue, but they may be the best person to ask when the time comes to address it. Other projects annotate TODOs with a date or an issue number.
+- Don't give a make up to bad code by adding comments. Instead make sure your code is clean then you can add make ups to your code by adding comments.
+
+### 3.2.2. Rather than commenting a block of code, refactor it
+> Good code is its own best documentation. As you’re about to add a comment, ask yourself, 'How can I improve the code so that this comment isn’t needed?' Improve the code and then document it to make it even clearer. — Steve McConnell
+
+- Functions should do one thing only. If you find yourself commenting a piece of code because it is unrelated to the rest of the function, consider extracting it into a function of its own.
+- In addition to being easier to comprehend, smaller functions are easier to test in isolation. Once you’ve isolated the orthogonal code into its own function, its name may be all the documentation required.
 
 
 **[⬆ back to top](#list-of-contents)**
