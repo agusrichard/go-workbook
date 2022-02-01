@@ -10,6 +10,7 @@
 ### 5. [Go Mutex Tutorial](#content-5)
 ### 6. [Deep dive on goroutine leaks and best practices to avoid them](#content-6)
 ### 7. [Applying Modern Go Concurrency Patterns to Data Pipelines](#content-7)
+### 8. [How to Write Bug-Free Goroutines in Go (Golang)](#content-8)
 
 
 </br>
@@ -1616,7 +1617,74 @@
   }
   ```
 
+**[⬆ back to top](#list-of-contents)**
 
+</br>
+
+---
+
+## [How to Write Bug-Free Goroutines in Go (Golang)](https://itnext.io/how-to-write-bug-free-goroutines-in-go-golang-59042b1b63fb) <span id="content-8"></span>
+
+### Introduction
+- Goroutines are Go’s way of writing asynchronous code.
+  
+### 1) Don’t make assumptions about execution order during asynchronous routines
+- Example of assuming execution order:
+  ```go
+  package main
+
+  import (
+    "time"
+    "fmt"
+  )
+
+  func main() {
+    var numbers []int // nil
+
+    // start a goroutine to initialise array
+    go func () {
+      numbers = make([]int, 2)
+    }()
+    
+    // do something synchronous
+    if numbers == nil {
+      time.Sleep(time.Second)
+    }
+    numbers[0] = 1 // will sometimes panic here
+    fmt.Println(numbers[0])
+  }
+  ```
+- Writing code like this means that you are assuming that the goroutine will finish its’ task before the result is needed.
+- The success of interleaved async and sync code, without some sort of management techniques (as we’ll discuss), will depend on the CPU availability.
+- Different compilers will schedule goroutines differently. Therefore, it's a safe bet to just not assume that a goroutine would have completed during a synchronized task.
+- Channels should be used to receive values that come from async tasks such as goroutines.
+- Channels can be buffered if you want to prevent blocking further execution until a value is eventually read from the channel to free it up.
+- Channels can be non-buffered if you want 1-in-1-out behavior.
+- Example:
+  ```go
+  package main
+
+  import (
+    "time"
+    "fmt"
+  )
+
+  func main() {
+    var numbers []int // nil
+    done := make(chan struct{})
+    // start a goroutine to initialise array
+    go func () {
+      numbers = make([]int, 2)
+      done <- struct{}{}
+    }()
+    
+    // do something synchronous
+    <-done // read done from channel
+    numbers[0] = 1 // will not panic anymore
+    fmt.Println(numbers[0]) // 1
+  }
+  ```
+- Although this is a contrived example, you can see where this would be useful: when the main thread handles complex work in parallel to a goroutine. The two tasks can be completed at the same time, without the possibility of a panic.
 
 
 **[⬆ back to top](#list-of-contents)**
@@ -1633,3 +1701,4 @@
 - https://tutorialedge.net/golang/go-mutex-tutorial/
 - https://mourya-g9.medium.com/deep-dive-on-goroutine-leaks-and-best-practices-to-avoid-them-a35021383f64
 - https://medium.com/amboss/applying-modern-go-concurrency-patterns-to-data-pipelines-b3b5327908d4
+- https://itnext.io/how-to-write-bug-free-goroutines-in-go-golang-59042b1b63fb
