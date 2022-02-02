@@ -1628,7 +1628,7 @@
 ### Introduction
 - Goroutines are Go’s way of writing asynchronous code.
   
-### 1) Don’t make assumptions about execution order during asynchronous routines
+### Don’t make assumptions about execution order during asynchronous routines
 - Example of assuming execution order:
   ```go
   package main
@@ -1685,6 +1685,129 @@
   }
   ```
 - Although this is a contrived example, you can see where this would be useful: when the main thread handles complex work in parallel to a goroutine. The two tasks can be completed at the same time, without the possibility of a panic.
+
+
+### Avoid accessing mutable data across concurrent threads
+- Accessing mutable data across multiple goroutines is a great way to introduce data races into your program.
+- A data race is where two or more threads (or goroutines in this context) access the same memory location concurrently.
+- Use WaitGroup:
+  ```go
+  package main
+
+  import (
+    "fmt"
+    "sync"
+  )
+
+  func main() {
+    a := 0 // data race
+    var wg sync.WaitGroup
+    wg.Add(1000)
+    for i := 0; i < 1000; i++ {
+      go func() {
+        defer wg.Done()
+        a += 1
+      }()
+    }
+    wg.Wait()
+      fmt.Println(a) // could theoretical be any number 0-1000 (most likely above 900)
+  }
+  ```
+- To prevent data races in goroutines, we need to synchronize access to shared memory. We can achieve this using a mutex. A mutex will ensure that we don’t read or write the same value at the same time.
+- It essentially locks access to a variable temporarily.
+  ```go
+  package main
+
+  import (
+    "fmt"
+    "sync"
+  )
+
+  func main() {
+    a := 0
+    var wg sync.WaitGroup
+
+    var mu sync.Mutex // guards access
+
+    wg.Add(1000)
+    for i := 0; i < 1000; i++ {
+      go func() {
+        mu.Lock()
+        defer mu.Unlock()
+        defer wg.Done()
+        a += 1
+      }()
+    }
+    wg.Wait()
+    fmt.Println(a) // will always be 1000
+  }
+  ```
+
+### Don’t write asynchronous tasks that should be synchronized
+- Not everything should be a goroutine
+- Some tasks need order. There are many processes where the next task depends on the result from the previous. These sequential tasks will trip up your program and will inevitably require making those areas more synchronized.
+- It’s an example of how not to control the flow of a Go program.
+  ```go
+  func main() {
+    go doSomething()
+    go doSomethingElse()
+    
+    // execute everything as a goroutine
+    
+    for { // this keeps the program running
+    
+    }
+
+
+
+  }
+  ```
+- It’s best to keep things simple. You can prevent this type of bad practice by thinking of your program in terms of the main thread, plus additional threads. You keep things running on the main thread in a synchronized way, but delegating tasks to another thread through goroutines if necessary.
+- Instead of wasting precious CPU resources, you can use WaitGroup to indicate to the runtime that you are waiting on the completion of n tasks before the program can exit. This doesn’t keep the CPU spinning in an infinite loop.
+
+### Don’t leave goroutines hanging
+- This can happen if a goroutine is stuck trying to send a value to a channel that doesn’t have any readers waiting to receive the value. This would essentially mean the channel is stuck forever.
+- Example:
+  ```go
+  func sendToChan() int {
+    channel := make(chan int)
+    for i := 0; i < 10; i++ {
+      i := i
+      go func() {
+        channel <- i // 9 hanging goroutines
+      }()
+    }
+    return <-channel
+  }
+  ```
+- Make buffered channel:
+  ```go
+  func sendToChan() int {
+    channel := make(chan int, 9)
+    for i := 0; i < 10; i++ {
+      i := i
+      go func() {
+        channel <- i // all goroutines executed successfully
+      }()
+    }
+    return <-channel
+  }
+  ```
+- Don’t start a goroutine without knowing when it’ll stop
+  ```go
+  done := make(chan bool)
+  go func() {
+    for {
+      select {
+        case <-done:
+          return
+        default:
+      }
+    }
+  }()
+  done <- true
+  ```
+
 
 
 **[⬆ back to top](#list-of-contents)**
