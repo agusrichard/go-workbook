@@ -337,6 +337,129 @@
 
 - Functions should do one thing only. If you find yourself commenting a piece of code because it is unrelated to the rest of the function, consider extracting it into a function of its own.
 - In addition to being easier to comprehend, smaller functions are easier to test in isolation. Once you’ve isolated the orthogonal code into its own function, its name may be all the documentation required.
+  
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
+
+## 4. Package Design
+
+### Introduction
+> Write shy code - modules that don’t reveal anything unnecessary to other modules and that don’t rely on other modules' implementations.
+- Each Go package is in effect it’s own small Go program. Just as the implementation of a function or method is unimportant to the caller, the implementation of the functions, methods and types that comprise your package’s public API—​its behaviour—​is unimportant for the caller.
+  
+### 4.1. A good package starts with its name
+- Writing a good Go package starts with the package’s name. Think of your package’s name as an elevator pitch to describe what it does using just one word.
+- Name your package for what it provides, not what it contains.
+- Just as I talked about names for variables in the previous section, the name of a package is very important. The rule of thumb I follow is not, "what types should I put in this package?". Instead the question I ask "what does service does package provide?" Normally the answer to that question is not "this package provides the X type", but "this package let’s you speak HTTP".
+- Within your project, each package name should be unique.
+- If you find you have two packages which need the same name, it is likely either;
+  - The name of the package is too generic.
+  - The package overlaps another package of a similar name. In this case either you should review your design, or consider merging the packages.
+
+### 4.2. Avoid package names like base, common, or util
+> [A little] duplication is far cheaper than the wrong abstraction. — Sandy Metz
+- Use plurals for naming utility packages. For example the strings for string handling utilities.
+- Packages with names like base or common are often found when functionality common to two or more implementations, or common types for a client and server, has been refactored into a separate package. I believe the solution to this is to reduce the number of packages, to combine the client, server, and common code into a single package named after the function of the package.
+- For example, the net/http package does not have client and server sub packages, instead it has a client.go and server.go file, each holding their respective types, and a transport.go file for the common message transport code.
+- An identifier’s name includes its package name.
+It’s important to remember that the name of an identifier includes the name of its package.
+  - The Get function from the net/http package becomes http.Get when referenced by another package.
+  - The Reader type from the strings package becomes strings.Reader when imported into other packages.
+  - The Error interface from the net package is clearly related to network errors.
+
+### 4.3. Return early rather than nesting deeply
+- This is achieved by using guard clauses; conditional blocks with assert preconditions upon entering a function. Here is an example from the bytes package,
+- Example:
+  ```go
+  func (b *Buffer) UnreadRune() error {
+    if b.lastRead <= opInvalid {
+      return errors.New("bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune")
+    }
+    if b.off >= int(b.lastRead) {
+      b.off -= int(b.lastRead)
+    }
+    b.lastRead = opInvalid
+    return nil
+  }
+  ```
+- Compare the above function with this:
+  ```go
+  func (b *Buffer) UnreadRune() error {
+    if b.lastRead > opInvalid {
+      if b.off >= int(b.lastRead) {
+        b.off -= int(b.lastRead)
+      }
+      b.lastRead = opInvalid
+      return nil
+    }
+    return errors.New("bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune")
+  }
+  ```
+
+### 4.4. Make the zero value useful
+- Every variable declaration, assuming no explicit initialiser is provided, will be automatically initialised to a value that matches the contents of zeroed memory. This is the values zero value.
+- Consider the sync.Mutex type. sync.Mutex contains two unexported integer fields, representing the mutex’s internal state. Thanks to the zero value those fields will be set to will be set to 0 whenever a sync.Mutex is declared. sync.Mutex has been deliberately coded to take advantage of this property, making the type usable without explicit initialisation.
+- Example:
+  ```go
+  type MyInt struct {
+    mu  sync.Mutex
+    val int
+  }
+
+  func main() {
+    var i MyInt
+
+    // i.mu is usable without explicit initialisation.
+    i.mu.Lock()
+    i.val++
+    i.mu.Unlock()
+  }
+  ```
+- Snippet:
+  ```go
+  func main() {
+    // s := make([]string, 0)
+    // s := []string{}
+    var s []string
+
+    s = append(s, "Hello")
+    s = append(s, "world")
+    fmt.Println(strings.Join(s, " "))
+  }
+  ```
+- A useful, albeit surprising, property of uninitialised pointer variables—​nil pointers—​is you can call methods on types that have a nil value. This can be used to provide default values simply.
+  ```go
+  type Config struct {
+    path string
+  }
+
+  func (c *Config) Path() string {
+    if c == nil {
+      return "/usr/home"
+    }
+    return c.path
+  }
+
+  func main() {
+    var c1 *Config
+    var c2 = &Config{
+      path: "/export",
+    }
+    fmt.Println(c1.Path(), c2.Path())
+  }
+  ```
+- The key to writing maintainable programs is that they should be loosely coupled—​a change to one package should have a low probability of affecting another package that does not directly depend on the first.
+- There are two excellent ways to achieve loose coupling in Go
+  - Use interfaces to describe the behaviour your functions or methods require.
+  - Avoid the use of global state.
+- If you want to reduce the coupling a global variable creates,
+  - Move the relevant variables as fields on structs that need them.
+  - Use interfaces to reduce the coupling between the behaviour and the implementation of that behaviour.
+
 
 
 **[⬆ back to top](#list-of-contents)**
