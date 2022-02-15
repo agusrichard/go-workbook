@@ -6,6 +6,7 @@
 ### [1. Guiding principles](#content-1)
 ### [2. Identifiers](#content-2)
 ### [3. Comments](#content-3)
+### [4. Package Deisgn](#content-4)
 
 
 </br>
@@ -345,7 +346,7 @@
 
 ---
 
-## 4. Package Design
+## [4. Package Design](https://dave.cheney.net/practical-go/presentations/qcon-china.html#_package_design) <span id="content-4"></span>
 
 ### Introduction
 > Write shy code - modules that don’t reveal anything unnecessary to other modules and that don’t rely on other modules' implementations.
