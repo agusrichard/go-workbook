@@ -3,14 +3,22 @@
 </br>
 
 ## List of Contents:
+
 ### 1. [Improving Your Go Tests and Mocks With Testify](#content-1)
+
 ### 2. [Unit Test vs Integration Test: What's the Difference?](#content-2)
+
 ### 3. [Unit Testing for REST APIs in Go](#content-3)
+
 ### 4. [Structuring Tests in Go](#content-4)
+
 ### 5. [Setup and Teardown using Go testing package](#content-5)
+
 ### 6. [Another patterns of testing in Go](#content-6)
+
 ### 7. [Go: tests with HTML coverage report](#content-7)
 
+### 8. [Go: tests with HTML coverage report](#content-8)
 
 </br>
 
@@ -23,6 +31,7 @@
 </br>
 
 - Assertion example on `main_test.go`
+
 ```go
 package main
 
@@ -35,7 +44,9 @@ func TestMultiply(t *testing.T) {
 	assert.Equal(t, Multiply(5, 3), 15)
 }
 ```
+
 - Mocking example
+
 ```go
 // main.go
 package main
@@ -83,6 +94,7 @@ func main() {
 	serviceTwo.ChargeCustomer(100)
 }
 ```
+
 ```go
 //main_test.go
 package main
@@ -118,9 +130,7 @@ func TestMyService_ChargeCustomer(t *testing.T) {
 
 ---
 
-
 ## [Unit Test vs Integration Test: What's the Difference?](https://www.guru99.com/unit-test-vs-integration-test.html#:~:text=Unit%20Testing%20test%20each%20part,see%20they%20are%20working%20fine.&text=Unit%20Testing%20is%20executed%20by,performed%20by%20the%20testing%20team.) <span id="content-2"></span>
-
 
 - Unit test: Test the unit of code (component).
 - Integration test: Individual units of a program are combined and tested as a group.
@@ -140,6 +150,7 @@ func TestMyService_ChargeCustomer(t *testing.T) {
 </br >
 
 - Snippet 1
+
 ```go
 func TestGetEntries(t *testing.T) {
 	req, err := http.NewRequest("GET", "/entries", nil)
@@ -162,7 +173,9 @@ func TestGetEntries(t *testing.T) {
 	}
 }
 ```
+
 - Snippet 2
+
 ```go
 func TestGetEntryByID(t *testing.T) {
 
@@ -196,12 +209,12 @@ func TestGetEntryByID(t *testing.T) {
 
 ## [Structuring Tests in Go](https://medium.com/@benbjohnson/structuring-tests-in-go-46ddee7a25c) <span id="content-4"></span>
 
-
 - Tests should be two things: self-contained and easily reproducible
 - Self-contained means changing one part of our test suite does not drastically affect another part.
 - Reproducible means someone doesn’t have to go through multiple steps to get their test suite running the same as mine.
 - Go has a perfectly good testing framework built in. Frameworks are also one more barrier to entry for other developers contributing to your code.
 - In the same folder, you'll have a file and file_test, you can named the package myapp and myapp_test. Then use dot import.
+
 ```go
 package myapp_test
 import (
@@ -213,8 +226,10 @@ func TestUser_Save(t *testing.T) {
     ok(t, u.Save())
 }
 ```
+
 - Interface can make our code complex, but also makes it difficult to test.
 - Use inline interfaces & simple mocks.
+
 ```go
 package yo
 type Client struct {}
@@ -223,6 +238,7 @@ func (c *Client) Send(recipient string) error
 // Yos retrieves a list of my yo's.
 func (c *Client) Yos() ([]*Yo, error)
 ```
+
 ```go
 package myapp
 type MyApplication struct {
@@ -234,6 +250,7 @@ func (a *MyApplication) Yo(recipient string) error {
     return a.YoClient.Send(recipient)
 }
 ```
+
 ```go
 package main
 func main() {
@@ -243,7 +260,9 @@ func main() {
     ...
 }
 ```
+
 - The caller should create the interface instead of the callee providing an interface.
+
 ```go
 package myapp_test
 // TestYoClient provides mockable implementation of yo.Client.
@@ -431,6 +450,7 @@ func TestCalculate(t *testing.T) {
 To add cover reports `go test -cover ./...`
 
 To get detail information of coverage
+
 ```shell
 go test -coverprofile=coverage.out ./...  # save coverage results
 go tool cover -func=coverage.out          # print results
@@ -456,6 +476,7 @@ test/cover:
 ```
 
 There are three different cover modes:
+
 - set: did each statement run?
 - count: how many times did each statement run?
 - atomic: like count, but counts precisely in parallel programs
@@ -464,7 +485,122 @@ There are three different cover modes:
 
 ---
 
+## [5 simple tips and tricks for writing unit tests in #golang](https://medium.com/@matryer/5-simple-tips-and-tricks-for-writing-unit-tests-in-golang-619653f90742) <span id="content-8"></span>
+
+### 1. Put your tests in a different package
+
+- Go insists that files in the same folder belong to the same package, that is except for `_test.go` files.
+- Moving your test code out of the package allows you to write tests as though you were a real user of the package.
+- You cannot fiddle around with the internals, instead you focus on the exposed interface and are always thinking about any noise that you might be adding to your API.
+- Image: <br />
+  ![](https://miro.medium.com/max/875/1*B2KNJQEck16YS2R9CpXhQA.png)
+
+### 2. Internal tests go in a different file
+
+- If you do need to unit test some internals, create another file with `_internal_test.go` as the suffix
+- Internal tests will necessarily be more brittle than your interface tests — but they’re a great way to ensure internal components are behaving, and are especially useful if you do test-driven development.
+- Image: <br />
+  ![](https://miro.medium.com/max/875/1*ngnvEnXntoHOLuJny3mUrA.png)
+
+### 3. Run all tests on save
+
+- Go builds and runs very quickly, so there’s little to no reason why you shouldn’t run your entire test suite every time you hit save. (Personally speaking, if your codebase is huge. This would give you a problem)
+
+### 4. Write table driven tests
+
+- Anonymous structs and composite literals allow us to write very clear and simple table tests without relying on any external package.
+- Snippet:
+  ```go
+  var fibTests = []struct {
+  n        int // input
+  expected int // expected result
+  }{
+  {1, 1},
+  {2, 1},
+  {3, 2},
+  {4, 3},
+  {5, 5},
+  {6, 8},
+  {7, 13},
+  }
+  ```
+- Then our test function just ranges over the slice, calling the `Fib` method for each `n`, before asserting that the results are correct:
+  ```go
+  func TestFib(t *testing.T) {
+    for _, tt := range fibTests {
+      actual := Fib(tt.n)
+      if actual != tt.expected {
+        t.Errorf("Fib(%d): expected %d, actual %d", tt.n, tt.expected, actual)
+      }
+    }
+  }
+  ```
+
+### 5. Mock things using Go code
+
+- If you need to mock something that your code relies on in order to properly test it, chances are it is a good candidate for an interface.
+- Even if you’re relying on an external package that you cannot change, your code can still take an interface that the external types will satisfy.
+- Check out [here](https://medium.com/@matryer/meet-moq-easily-mock-interfaces-in-go-476444187d10) to easily mock interfaces.
+- Snippet:
+  ```go
+  package mailman
+  import “net/mail”
+  type MailMan struct{}
+  func (m *MailMan) Send(subject, body string, to ...*mail.Address) {
+    // some code
+  }
+  func New() *MailMan {
+    return &MailMan{}
+  }
+  ```
+- If the code we’re testing takes a `MailMan` object, the only way our test code can call it is by providing an actual `MailMan` instance.
+- This means that whenever we run our tests, a real email could be sent. Imagine if we’ve implemented the on save feature from above. We’d quickly annoy our test users or run up big service bills.
+- An alternative is to add this simple interface to your code:
+  ```go
+  type EmailSender interface{
+    Send(subject, body string, to ...*mail.Address)
+  }
+  ```
+- Of course, the `MailMan` already satisfies this interface since we took the `Send` method signature from him in the first place — so we can still pass in `MailMan` objects as before.
+- But now we can write a test email sender:
+  ```go
+  type testEmailSender struct{
+    lastSubject string
+    lastBody    string
+    lastTo      []*mail.Address
+  }
+  // make sure it satisfies the interface
+  var _ package.EmailSender = (*testEmailSender)(nil)
+  func (t *testEmailSender) Send(subject, body string, to ...*mail.Address) {
+    t.lastSubject = subject
+    t.lastBody = body
+    t.lastTo = to
+  }
+  ```
+- Now we can update our `SendWelcomeEmail` function to take the interface, rather than the concrete type:
+  ```go
+  func SendWelcomeEmail(m EmailSender, to ...*mail.Address) {...}
+  ```
+- In our test code, we can send in our fake sender instead and make assertions on the fields after calling the target function:
+  ```go
+  func TestSendWelcomeEmail(t *testing.T) {
+    sender := &testEmailSender{}
+    SendWelcomeEmail(sender, to1, to2)
+    if sender.lastSubject != "Welcome" {
+      t.Error("Subject line was wrong")
+    }
+    if sender.To[0] != to1 && sender.To[1] != to2 {
+      t.Error("Wrong recipients")
+    }
+  }
+  ```
+
+</br>
+
+---
+
 ## References:
+
 - https://golang.org/doc/code
 - https://tutorialedge.net/golang/improving-your-tests-with-testify-go/
 - https://www.guru99.com/unit-test-vs-integration-test.html#:~:text=Unit%20Testing%20test%20each%20part,see%20they%20are%20working%20fine.&text=Unit%20Testing%20is%20executed%20by,performed%20by%20the%20testing%20team.
