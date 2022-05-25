@@ -3,15 +3,24 @@
 </br>
 
 ## List of Contents:
+
 ### 1. [Go mod](#content-1)
+
 ### 2. [What “accept interfaces, return structs” means in Go](#content-2)
+
 ### 3. [Preemptive Interface Anti-Pattern in Go](#content-3)
+
 ### 4. [Context in Golang!](#content-4)
+
 ### 5. [Interfaces in Golang](#content-5)
+
 ### 6. [A Guide On SQL Database Transactions In Go](#content-6)
+
 ### 7. [5 Useful Go Tricks and Tips You Should Know 🐹 🚀](#content-7)
+
 ### 8. [Try and Catch in Golang](#content-8)
 
+### 9. [Generics in Go Explained with Code Examples](#content-9)
 
 </br>
 
@@ -39,9 +48,9 @@
 
 ## [What “accept interfaces, return structs” means in Go](https://medium.com/@cep21/what-accept-interfaces-return-structs-means-in-go-2fe879e25ee8) <span id="content-2"></span>
 
-
 - > All problems in computer science can be solved by another level of indirection, except of course for the problem of too many indirections
-  > >David J. Wheeler
+  >
+  > > David J. Wheeler
 - Interfaces abstract away from structures in Go
 - Tt doesn’t make sense to create this complexity until it’s needed
 - > Always [abstract] things when you actually need them, never when you just foresee that you need them.
@@ -50,6 +59,7 @@
 - Another aspect of simplification is removing unnecessary detail.
 - If you don't need some recipes to make something, then don't list it on your need-list.
 - Check this snippet:
+
 ```go
 type Database struct{ }
 func (d *Database) AddUser(s string) {...}
@@ -58,8 +68,10 @@ func NewUser(d *Database, firstName string, lastName string) {
   d.AddUser(firstName + lastName)
 }
 ```
+
 - On the above code, we define database to have 2 methods. But on NewUser database job is just to add new user. No need to add RemoveUser
 - This is probably the better way:
+
 ```go
 type DatabaseWriter interface {
   AddUser(string)
@@ -76,9 +88,11 @@ func NewUser(d DatabaseWriter, firstName string, lastName string) {
 ---
 
 ## [Preemptive Interface Anti-Pattern in Go](https://medium.com/@cep21/preemptive-interface-anti-pattern-in-go-54c18ac0668a) <span id="content-3"></span>
+
 - Interfaces are a way to describe behavior
 - Preempttive interfaces are when developer codes to an interface before an actual need arises.
 - Example:
+
 ```go
 type Auth interface {
   GetUser() (User, error)
@@ -90,7 +104,9 @@ func NewAuth() Auth {
   return &authImpl
 }
 ```
+
 - You have to change the code if you use this
+
 ```java
 // auth.java
 public class Auth {
@@ -105,8 +121,10 @@ public class Logic {
   }
 }
 ```
+
 - For example, you want to take any objects in takeAction as long as it has canAction inside it. How it would be?
 - Better code in java
+
 ```java
 // auth.java
 public interface Auth {
@@ -122,6 +140,7 @@ public class Logic {
   }
 }
 ```
+
 - (Personal notes) It'e better to pass a pointer of a struct rather than the struct itself. It makes sure that we check for its nullity.
 - Go uses implicit interface, which means concrete objects (structs) don't need to explicitly defined that they are using this interface. It's different from explicit interface like in Java.
 - Usually you don't need preemptive interface in go.
@@ -138,15 +157,17 @@ public class Logic {
 
 ## [Context in Golang!](https://levelup.gitconnected.com/context-in-golang-98908f042a57) <span id="content-4"></span>
 
-
 ### Introduction
+
 - Applications in golang use Contexts for controlling and managing very important aspects of reliable applications, such as cancellation and data sharing in concurrent programming.
 
 ### Context with value
+
 - One of the most common uses for contexts is to share data, or use request scoped values. When you have multiple functions and you want to share data between them, you can do so using contexts.
 - The easiest way to do that is to use the function `context.WithValue`.
 - You can think about the internal implementation as if the context contained a map inside of it, so you can add and retrieve values by key.
 - Example:
+
   ```go
   package main
 
@@ -170,12 +191,15 @@ public class Logic {
   	fmt.Println(val)
   }
   ```
+
 - One important aspect of the design behind context package is that everything returns a new `context.Context` struct.
 - Using this technique you can pass along the context.Context to concurrent functions and as long as you properly manage the context you are passing on, it’s good way to share scoped values between those concurrent functions (meaning that each context will keep their own values on its scope).
 
 ### Middlewares
+
 - The type http.Request contains a context which can carry scoped values throughout the HTTP pipeline.
 - Example:
+
   ```go
   package main
 
@@ -212,10 +236,12 @@ public class Logic {
   ```
 
 ### Context Cancellation
-- It’s a good practice to propagate the cancellation signal when you receive one. 
+
+- It’s a good practice to propagate the cancellation signal when you receive one.
 - Let’s say you have a function where you start tens of goroutines. That main function waits for all goroutines to finish or a cancellation signal before proceeding. If you receive the cancellation signal you may want to propagate it to all your goroutines, so you don’t waste compute resources. If you share the same context among all goroutines you can easily do that.
 - To create a context with cancellation you only have to call the function context.WithCancel(ctx) passing your context as parameter. This will return a new context and a cancel function. To cancel that context you only need to call the cancel function.
 - Example:
+
   ```go
   package main
 
@@ -267,17 +293,17 @@ public class Logic {
   	return fmt.Sprintf("%s from %s", body, url)
   }
   ```
+
 - Each request is fired in a separate goroutine. The context is passed to all requests that are fired. The only thing that is being done with the context is that it gets propagated to the HTTP client. This allows a graceful cancellation of the request and underlying connection when the cancel function is called.
 - This is a very common patter for functions that accept a context.Context as argument, they either actively act on the context (like checking if it was cancelled) or they pass it to an underlying function that deals with it (in this case the Do function that receives the context through the http.Request).
 
-
 ### Context Timeout
+
 - It is a good practice to always defer the cancel function when it is available to avoid context leaking.
 - Syntax:
   ```go
   ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
   ```
-
 
 **[⬆ back to top](#list-of-contents)**
 
@@ -288,47 +314,53 @@ public class Logic {
 ## [Interfaces in Golang](https://medium.com/nerd-for-tech/interfaces-in-golang-f9df59b0b71e) <span id="content-5"></span>
 
 ### Why are we not defining interfaces with the type definition like in typical static languages like C++, Java etc ?
-- In languages like C++, Java, one needs to specify that a type implements an interface like in the code given below:
-  ```java
-	interface Vehicle 
-	{   
-		// public and abstract  
-		void drive(); 
-	} 
 
-	// A class that implements the interface. 
-	class Car implements Vehicle 
-	{ 
-		// Implementing the capabilities of 
-		// interface. 
-		public void drive() 
-		{ 
-			System.out.println("Drive"); 
-		} 
-	}
+- In languages like C++, Java, one needs to specify that a type implements an interface like in the code given below:
+
+  ```java
+  interface Vehicle
+  {
+  	// public and abstract
+  	void drive();
+  }
+
+  // A class that implements the interface.
+  class Car implements Vehicle
+  {
+  	// Implementing the capabilities of
+  	// interface.
+  	public void drive()
+  	{
+  		System.out.println("Drive");
+  	}
+  }
   ```
+
 - In such languages, defining the interface for the Object enables the compiler to form a dispatch tables for the objects pointing to the functions.
 - For a developer, this means that the object implementing the interface does not need to explicitly say it implements it, as shown in the code below:
+
   ```go
-	type Vehicle interface {
-		Drive()
-	}
+  type Vehicle interface {
+  	Drive()
+  }
 
-	// Car implements the Vehicle interface simply by implementing method Drive.
-	type Car struct{}
+  // Car implements the Vehicle interface simply by implementing method Drive.
+  type Car struct{}
 
-	func (c Car) Drive() {
-		fmt.Println("Drive")
-	}
+  func (c Car) Drive() {
+  	fmt.Println("Drive")
+  }
   ```
+
 - Thus any struct can satisfy an interface simply by implementing its method signatures. It offers several advantages like:
   - Makes it easier to use mocks instead of real objects in unit tests.
   - Helps enforce decoupling between parts of your codebase.
 
 ### Should this package export interface in combination with the exposed type implementing the interface?
+
 - Don’t export any interfaces unless you have to.
 - Take a case of golang error interface.
-	```go
+  ```go
   type error interface {
       Error() string
   }
@@ -336,6 +368,7 @@ public class Logic {
 - It is a builtin interface in the standard library that standardises the error behaviour.
 
 ### Should this package return an interface rather than the concrete type?
+
 - According to CodeReviewComments, Go interfaces generally belong in the package that uses values of the interface type, not the package that implements those values.
 - However Effective go docs also complements it by saying that: if a type exists only to implement an interface and will never have exported methods beyond that interface, there is no need to export the type itself.
 - But the question is how do you identify such scenarios? How do you know that the type will have no additional value in the future? In my experience, the answer is to “wait”.
@@ -343,34 +376,42 @@ public class Logic {
 - A good hint for exposing an interface is when you have multiple types in your package implementing the same method signature.
 
 ### In case of confusion, it is helpful to look for some red flags that can signals that you’re probably using interfaces wrong. Some are:
+
 - Your interface is not decoupling an API from change.
+
   - Example:
     ```go
-  package sendgrid
+    package sendgrid
+    ```
 
   type SendGrid interface {
-    SendValidationEmail(email string) error
-    SendPasswordChangeEmail(email string) error
+  SendValidationEmail(email string) error
+  SendPasswordChangeEmail(email string) error
   }
 
   // sendgrid is our Sendgrid implementation.
   type sendgrid struct {
-    /* impl */
+  /_ impl _/
   }
 
   func NewSendGrid(host string) SendGrid {
-    return &sendgrid{host}
+  return &sendgrid{host}
   }
 
-  func (s *sendgrid) SendValidationEmail(email string) error {
-      /* impl */
+  func (s _sendgrid) SendValidationEmail(email string) error {
+  /_ impl \*/
   }
 
-  func (s *sendgrid) SendPasswordChangeEmail(email string) error {
-      /* impl */
+  func (s _sendgrid) SendPasswordChangeEmail(email string) error {
+  /_ impl \*/
   }
+
   ```
+
+  ```
+
 - Also imagine that you want to add a new method to this interface that’s used by lots of people, how do you add a new method to it without breaking their code?
+
   ```go
   package sendgrid
 
@@ -393,13 +434,20 @@ public class Logic {
       /* impl */
   }
   ```
+
 - Your interface has more than 1 or 2 methods.
+
   - Having too many methods for your interface reduces its usability. Taking example of fmt.Stringer interface, it has only one method signature, i.e
     ```go
-  type Stringer interface {
+    type Stringer interface {
       String() string
-  }
+    }
+    ```
+
   ```
+
+  ```
+
 - The bigger the interface, the weaker the abstraction.
 
 **[⬆ back to top](#list-of-contents)**
@@ -411,9 +459,11 @@ public class Logic {
 ## [A Guide On SQL Database Transactions In Go](https://www.sohamkamani.com/golang/sql-transactions/) <span id="content-6"></span>
 
 ### Introduction
+
 - Transactions are very useful when you want to perform multiple operations on a database, but still treat them as a single unit.
 
 ### Transactions
+
 - For example, what if someone adopted pets and bought food for them? We could then write two queries to do just that:
   ```sql
   INSERT INTO pets (name, species) VALUES ('Fido', 'dog'), ('Albert', 'cat');
@@ -437,7 +487,9 @@ public class Logic {
 - Here, “atomically” means both of the SQL statements are treated as a single unit - they pass or fail together
 
 ### Implementing Transactions in Go - Basic Transactions
+
 - Example:
+
   ```go
   package main
 
@@ -490,7 +542,9 @@ public class Logic {
   ```
 
 ### Read-and-Update Transactions
+
 - Example:
+
   ```go
   package main
 
@@ -546,9 +600,9 @@ public class Logic {
     }
   }
   ```
+
 - It’s important to note why the read query is executed within the transaction: any read query outside the transaction doesn’t consider the values of an uncommitted transaction.
 - This means that if our read query was outside the transaction, we would not consider the pets added in the first insert query.
-
 
 **[⬆ back to top](#list-of-contents)**
 
@@ -559,7 +613,9 @@ public class Logic {
 ## [5 Useful Go Tricks and Tips You Should Know 🐹 🚀](https://cgarciarosales97.medium.com/5-useful-go-tricks-and-tips-you-should-know-b8017d1f1833) <span id="content-7"></span>
 
 ### 1. Execution time of a code
+
 - Snippet:
+
   ```go
   package main
 
@@ -578,8 +634,11 @@ public class Logic {
     time.Sleep(3 * time.Second)
   }
   ```
+
 ### 2. Marshall Json string with no defined Struct to a “Object”
+
 - Snippet:
+
   ```go
   package main
 
@@ -627,13 +686,16 @@ public class Logic {
   ```
 
 ### 3. Get Test Coverage of your code
+
 - Command:
   ```shell
   go test -coverprofile=coverage.out ./… && go tool cover -html=coverage.out && rm coverage.out
   ```
 
 ### 4. Search if a String is inside of a Slice
+
 - Snippet:
+
   ```go
   package main
 
@@ -658,6 +720,7 @@ public class Logic {
   ```
 
 ### 5. CPU Profiling
+
 - Command:
   ```shell
   go test -cpuprofile=cpu.out ./… && go tool pprof cpu.out && rm cpu.out
@@ -681,28 +744,29 @@ public class Logic {
       }.Do()
   ```
 - Snippet:
+
   ```go
   package main
-  
+
   import (
       "fmt"
   )
-  
+
   type Block struct {
       Try     func()
       Catch   func(Exception)
       Finally func()
   }
-  
+
   type Exception interface{}
-  
+
   func Throw(up Exception) {
       panic(up)
   }
-  
+
   func (tcf Block) Do() {
       if tcf.Finally != nil {
-  
+
           defer tcf.Finally()
       }
       if tcf.Catch != nil {
@@ -714,7 +778,7 @@ public class Logic {
       }
       tcf.Try()
   }
-  
+
   func main() {
       fmt.Println("We started")
       Block{
@@ -739,10 +803,232 @@ public class Logic {
 
 ---
 
+## [Generics in Go Explained with Code Examples](https://www.freecodecamp.org/news/generics-in-golang/) <span id="content-9"></span>
+
+### What Do Generics Really Change in Go?
+
+- Generics allow our functions or data structures to take in several types that are defined in their generic form.
+- Let's say you need to make a function that takes one slice and prints it. Then you might write this type of function:
+  ```go
+  func Print(s []string) {
+    for _, v := range s {
+      fmt.Print(v)
+    }
+  }
+  ```
+- Simple, right? What if we want to have the slice be an integer? You will need to make a new method for that:
+  ```go
+  func Print(s []int) {
+    for _, v := range s {
+      fmt.Print(v)
+    }
+  }
+  ```
+- These solutions might seem redundant, as we're only changing the parameter. But currently, that's how we solve it in Go without resorting to making it into some interface.
+- And now with generics, they will allow us to declare our functions like this:
+  ```go
+  func Print[T any](s []T) {
+    for _, v := range s {
+      fmt.Print(v)
+    }
+  }
+  ```
+- In the above function, we are declaring two things:
+  - We have T, which is the type of the any keyword (this keyword is specifically defined as part of a generic, which indicates any type)
+  - And our parameter, where we have variable s whose type is a slice of T .
+- Calling the function:
+  ```go
+  func main() {
+    Print([]string{"Hello, ", "playground\n"})
+    Print([]int{1,2,3})
+  }
+  ```
+
+### Limitations of Generics
+
+- What if we want to do more complex things? Let's say that we have defined our own methods for a structure and want to call it:
+
+  ```go
+  package main
+
+  import (
+    "fmt"
+  )
+
+  type worker string
+
+  func (w worker) Work(){
+    fmt.Printf("%s is working\n", w)
+  }
+
+
+  func DoWork[T any](things []T) {
+      for _, v := range things {
+          v.Work()
+      }
+  }
+
+  func main() {
+    var a,b,c worker
+    a = "A"
+    b = "B"
+    c = "C"
+    DoWork([]worker{a,b,c})
+  }
+  ```
+
+- And you will get this:
+  ```text
+  type checking failed for main
+  prog.go2:25:11: v.Work undefined (type bound for T has no method Work)
+  ```
+- It fails to run because the slice processed inside the function is of type any and it doesn't implement the method Work, which makes it fail to run.
+- using interface:
+
+  ```go
+  package main
+
+  import (
+    "fmt"
+  )
+
+  type Person interface {
+      Work()
+  }
+
+  type worker string
+
+  func (w worker) Work(){
+    fmt.Printf("%s is working\n", w)
+  }
+
+  func DoWork[T Person](things []T) {
+      for _, v := range things {
+          v.Work()
+      }
+  }
+
+  func main() {
+    var a,b,c worker
+    a = "A"
+    b = "B"
+    c = "C"
+    DoWork([]worker{a,b,c})
+  }
+  ```
+
+- Well it works with the interface, but just having an interface without the generic works well, too:
+
+  ```go
+  package main
+
+  import (
+    "fmt"
+  )
+
+  type Person interface {
+      Work()
+  }
+
+  type worker string
+
+  func (w worker) Work(){
+    fmt.Printf("%s is working\n", w)
+  }
+
+  func DoWorkInterface(things []Person) {
+      for _, v := range things {
+          v.Work()
+      }
+  }
+
+  func main() {
+    var d,e,f worker
+    d = "D"
+    e = "E"
+    f = "F"
+    DoWorkInterface([]Person{d,e,f})
+  }
+  ```
+
+### Playing Around With Constraint
+
+- One of the constraints is comparable. Let's see how it works:
+
+  ```go
+  func Equal[T comparable](a, b T) bool {
+      return a == b
+  }
+
+  func main() {
+    Equal("a","a")
+  }
+  ```
+
+- Aside from that, we can also try to make our own constraint like this:
+
+  ```go
+  package main
+
+  import(
+    "fmt"
+  )
+
+  type Number interface {
+      type int, float64
+  }
+
+  func MultiplyTen[T Number](a T) T{
+    return a*10
+  }
+
+  func main() {
+    fmt.Println(MultiplyTen(10))
+    fmt.Println(MultiplyTen(5.55))
+  }
+  ```
+
+### Other Ways to Use Generics
+
+- Aside from using generics as part of a function, you can also declare them as variables like this:
+
+  ```go
+  type GenericSlice[T any] []T
+  ```
+
+  ```go
+  func (g GenericSlice[T]) Print() {
+    for _, v := range g {
+      fmt.Println(v)
+    }
+  }
+
+  func Print [T any](g GenericSlice[T]) {
+    for _, v := range g {
+      fmt.Println(v)
+    }
+  }
+
+  func main() {
+    g := GenericSlice[int]{1,2,3}
+
+    g.Print() //1 2 3
+    Print(g) //1 2 3
+  }
+  ```
+
+**[⬆ back to top](#list-of-contents)**
+
+</br>
+
+---
+
 ## References:
+
 - https://medium.com/@cep21/what-accept-interfaces-return-structs-means-in-go-2fe879e25ee8
 - https://medium.com/@cep21/preemptive-interface-anti-pattern-in-go-54c18ac0668a
 - https://levelup.gitconnected.com/context-in-golang-98908f042a57
 - https://medium.com/nerd-for-tech/interfaces-in-golang-f9df59b0b71e
 - https://www.sohamkamani.com/golang/sql-transactions/
 - https://cgarciarosales97.medium.com/5-useful-go-tricks-and-tips-you-should-know-b8017d1f1833
+- https://www.freecodecamp.org/news/generics-in-golang/
