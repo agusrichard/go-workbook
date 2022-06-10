@@ -1,2 +1,2 @@
-# go-workbook
+# Go Workbook
 Workbook for learning Go language
