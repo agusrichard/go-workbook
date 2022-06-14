@@ -3,12 +3,18 @@
 </br>
 
 ## List of Contents:
+
 ### 1. [Don’t just check errors, handle them gracefully](#content-1)
+
 ### 2. [Error handling and Go](#content-2)
+
 ### 3. [REST API Error Handling in Go: Behavioral Type Assertion](#content-3)
+
 ### 4. [Go Error Handling (Part 3) — The errors Package](#content-4)
 
 ### 5. [Decorating Go Errors](#content-5)
+
+### 6. [Golang Microservices: Working and Dealing with Errors](#content-6)
 
 </br>
 
@@ -23,6 +29,7 @@ We wanted there to be a single way to do error handling, something that we could
 However, there is no single way to handle errors. Instead, Go's error handling can be classified into three core strategies.
 
 ### 1. Sentinel errors
+
 ```go
 if err == ErrSomething { … }
 ```
@@ -32,7 +39,7 @@ Using sentinel values is the least flexible error handling strategy, as the call
 
 Instead the caller will be forced to look at the output of the error‘s Error method to see if it matches a specific string.
 
-Never inspect the output of error.Error. As an aside, I believe you should never inspect the output of the error.Error method. The Error method on the error interface exists for humans, not code. 
+Never inspect the output of error.Error. As an aside, I believe you should never inspect the output of the error.Error method. The Error method on the error interface exists for humans, not code.
 
 Never the less, comparing the string form of an error is, in my opinion, a code smell, and you should try to avoid it.
 
@@ -42,6 +49,7 @@ By far the worst problem with sentinel error values is they create a source code
 Conclusion: avoid sentinel errors
 
 ### 2. Error types
+
 ```go
 if err, ok := err.(SomeType); ok { … }
 ```
@@ -53,13 +61,15 @@ type MyError struct {
         Line int
 }
 
-func (e *MyError) Error() string { 
+func (e *MyError) Error() string {
         return fmt.Sprintf("%s:%d: %s”, e.File, e.Line, e.Msg)
 }
 
 return &MyError{"Something happened", “server.go", 42}
 ```
+
 Because MyError error is a type, callers can use type assertion to extract the extra context from the error.
+
 ```go
 err := something()
 switch err := err.(type) {
@@ -73,6 +83,7 @@ default:
 ```
 
 An excellent example of this is the os.PathError type which annotates the underlying error with the operation it was trying to perform, and the file it was trying to use.
+
 ```go
 // PathError records an error and the operation
 // and file path that caused it.
@@ -92,6 +103,7 @@ Conclusion: avoid error types
 While error types are better than sentinel error values, because they can capture more context about what went wrong, error types share many of the problems of error values.
 
 ### 3. Opaque errors
+
 In my opinion this is the most flexible error handling strategy as it requires the least coupling between your code and caller.
 
 I call this style opaque error handling, because while you know an error occurred, you don’t have the ability to see inside the error. As the caller, all you know about the result of the operation is that it worked, or it didn’t.
@@ -113,6 +125,7 @@ func fn() error {
 > Assert errors for behaviour, not type
 
 In this case rather than asserting the error is a specific type or value, we can assert that the error implements a particular behaviour. Consider this example:
+
 ```go
 type temporary interface {
 	Temporary() bool
@@ -130,6 +143,7 @@ If the error does not implement the temporary interface; that is, it does not ha
 ### Don’t just check errors, handle them gracefully
 
 This brings me to a second Go proverb that I want to talk about; don’t just check errors, handle them gracefully. Can you suggest some problems with the following piece of code?
+
 ```go
 func AuthenticateRequest(r *Request) error {
         err := authenticate(r.User)
@@ -141,12 +155,13 @@ func AuthenticateRequest(r *Request) error {
 ```
 
 An obvious suggestion is that the five lines of the function could be replaced with
+
 ```go
 return authenticate(r.User)
 ```
 
 But this is the simple stuff that everyone should be catching in code review. More fundamentally the problem with this code is I cannot tell where the original error came from.
-If authenticate returns an error, then AuthenticateRequest will return the error to its caller, who will probably do the same, and so on. At the top of the program the main body of the program will print the error to the screen or a log file, and all that will be printed is: No such file or directory. 
+If authenticate returns an error, then AuthenticateRequest will return the error to its caller, who will probably do the same, and so on. At the top of the program the main body of the program will print the error to the screen or a log file, and all that will be printed is: No such file or directory.
 
 There is no information of file and line where the error was generated. There is no stack trace of the call stack leading up to the error.
 
@@ -161,6 +176,7 @@ return fmt.Errorf("authenticate failed: %v", err)
 return nil
 }
 ```
+
 But as we saw earlier, this pattern is incompatible with the use of sentinel error values or type assertions, because converting the error value to a string, merging it with another string, then converting it back to an error with fmt.Errorf breaks equality and destroys any context in the original error.
 
 ### Annotating errors
@@ -174,14 +190,15 @@ func Cause(err error) error
 ```
 
 Consider this function:
+
 ```go
 func ReadFile(path string) ([]byte, error) {
         f, err := os.Open(path)
         if err != nil {
                 return nil, errors.Wrap(err, "open failed")
-        } 
+        }
         defer f.Close()
- 
+
         buf, err := ioutil.ReadAll(f)
         if err != nil {
                 return nil, errors.Wrap(err, "read failed")
@@ -196,7 +213,7 @@ func ReadConfig() ([]byte, error) {
         config, err := ReadFile(filepath.Join(home, ".settings.xml"))
         return config, errors.Wrap(err, "could not read config")
 }
- 
+
 func main() {
         _, err := ReadConfig()
         if err != nil {
@@ -209,6 +226,7 @@ func main() {
 If we replace `fmt.Println()` with `errors.Println()`We will get stack trace.
 
 Now we’ve introduced the concept of wrapping errors to produce a stack, we need to talk about the reverse, unwrapping them. This is the domain of the errors.Cause function.
+
 ```go
 // IsTemporary returns true if err is temporary.
 func IsTemporary(err error) bool {
@@ -222,6 +240,7 @@ In operation, whenever you need to check an error matches a specific value or ty
 ### Only handle errors once
 
 If you make less than one decision, you’re ignoring the error. As we see here, the error from w.Write is being discarded.
+
 ```go
 func Write(w io.Writer, buf []byte) {
         w.Write(buf)
@@ -229,19 +248,21 @@ func Write(w io.Writer, buf []byte) {
 ```
 
 But making more than one decision in response to a single error is also problematic.
+
 ```go
 func Write(w io.Writer, buf []byte) error {
         _, err := w.Write(buf)
         if err != nil {
                 // annotated error goes to log file
                 log.Println("unable to write:", err)
- 
+
                 // unannotated error returned to caller
                 return err
         }
         return nil
 }
 ```
+
 ```go
 func Write(w io.Write, buf []byte) error {
         _, err := w.Write(buf)
@@ -262,6 +283,7 @@ Finally, use errors.Cause to recover the underlying error if you need to inspect
 ## [Error handling and Go](https://blog.golang.org/error-handling-and-go) <span id="content-2"></span>
 
 - Standard usage:
+
 ```go
 f, err := os.Open("filename.ext")
 if err != nil {
@@ -269,7 +291,9 @@ if err != nil {
 }
 // do something with the open *File f
 ```
+
 - If you want to create custom error 1
+
 ```go
 // errorString is a trivial implementation of error.
 type errorString struct {
@@ -280,7 +304,9 @@ func (e *errorString) Error() string {
     return e.s
 }
 ```
+
 - Error message that probably you want to consider
+
 ```go
 func Sqrt(f float64) (float64, error) {
     if f < 0 {
@@ -289,11 +315,15 @@ func Sqrt(f float64) (float64, error) {
     // implementation
 }
 ```
+
 - Formatting error message, this returns error type
+
 ```go
 fmt.Errorf("math: square root of negative number %g", f)
 ```
+
 - Another example of custom error
+
 ```go
 type SyntaxError struct {
     msg    string // description of error
@@ -302,7 +332,9 @@ type SyntaxError struct {
 
 func (e *SyntaxError) Error() string { return e.msg }
 ```
+
 - Simplify repetitive error handling
+
 ```go
 func init() {
     http.HandleFunc("/view", viewRecord)
@@ -347,9 +379,11 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 ## [REST API Error Handling in Go: Behavioral Type Assertion](https://medium.com/@ozdemir.zynl/rest-api-error-handling-in-go-behavioral-type-assertion-509d93636afd) <span id="content-3"></span>
 
 ### Introduction
+
 - Robust Go applications should deal with errors gracefully.
 
 ### General guidelines
+
 - Always check errors. Never ignore them unless you have a very, very good reason.
 - Always log error details somewhere. Errors are the most valuable information we have, to fix bugs, potential failures and performance issues.
 - Add breadcrumbs to error logs, such as Client IP, request headers/body, user information/events. The more data you have, the easier it is to debug the problem.
@@ -361,8 +395,8 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 - Don’t share the details/stack trace of Server Errors with the client. They might contain your code logic and secrets. Log them on a secure platform with a unique id and return this id to the client. So that you can find relevant records/metrics easily when a customer contacts you with this trace id.
 - Document your errors both for developers and users. Try to be as descriptive as possible with error details. It is better to suggest possible reasons/solutions for users in the documentation.
 
-
 ### Some background — Errors in Go
+
 - By convention, errors are the last return value from functions, that implements the built-in interface error:
   ```go
   type error interface {
@@ -384,9 +418,10 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   }
   ```
 
-
 ### Handling errors in a sample Go REST API project
+
 - Example:
+
   ```go
   package main
 
@@ -446,6 +481,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   	log.Fatal(http.ListenAndServe(":8080", nil))
   }
   ```
+
 - Rewriting the implemenation:
   ![New](https://miro.medium.com/max/700/1*bkPy-jPUV5F5j9w7ECy5UA.png)
 - Remember that we want to have two different main error types: Client Error for 4xx errors and Server Error (or Internal Error) for 5xx. We can declare interfaces based on the behavior we expect from these two types and use type assertion on rootHandler to make some decisions about the error.
@@ -461,10 +497,11 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   }
   ```
 - Explanation for above:
-  - `ResponseBody() ([]byte, error)` : Returns JSON response body of the error (title, message, error code…) in bytes. (*Getting response body as bytes from one method is not the best solution, see Further Improvements section.)
+  - `ResponseBody() ([]byte, error)` : Returns JSON response body of the error (title, message, error code…) in bytes. (\*Getting response body as bytes from one method is not the best solution, see Further Improvements section.)
   - `ResponseHeaders() (int, map[string]string)` : Returns HTTP status code (4xx, 5xx) and headers (content type, no-cache…) of response.
   - `Error()` string , this is necessary to make every ClientError and error at the same time.
 - Example:
+
   ```go
   // HTTPError implements ClientError interface.
   type HTTPError struct {
@@ -504,11 +541,13 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   	}
   }
   ```
+
 - HTTPError has all the information we need to log the error and return a proper HTTP response to the client:
   - Cause : Original error (unmarshall errors, network errors…) which caused this HTTP error, set it to nil if there isn’t any.
   - Detail : message to return in JSON response. Ex: { "detail": "Wrong password" } .
   - Status : HTTP response status code. Ex: 400, 401, 405…
 - The final version:
+
   ```go
   package main
 
@@ -601,10 +640,10 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 ---
 
 ## [Go Error Handling (Part 3) — The errors Package](https://sher-chowdhury.medium.com/go-error-handling-part-3-the-errors-package-1cb73f6eb0ce) <span id="content-4"></span>
+
 - On the other hand, the errors package doesn’t require any of this extra setup; instead, you can go straight to creating error variables using the package’s errors.New() function.
   ![](https://miro.medium.com/max/1000/1*lmUD4CMR5_79bAF2CySGWA.png)
 - It’s best practice for functions to always return an error value.
-
 
 </br>
 
@@ -613,10 +652,12 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 ## [Decorating Go Errors](https://medium.com/spectro-cloud/decorating-go-error-d1db60bb9249) <span id="content-5"></span>
 
 ### Introduction
+
 - Go treats the error as a value with a predefined type, technically an interface.
 - However, writing a multi-layered architecture application and exposing the features with APIs demands error treatment with much more contextual information than just a value.
 
 ### Custom Type
+
 - As we will override the default Go error type we have to start with a custom error type which will be interpreted within the application, and is also of Go error type. Hence we will introduce new custom error interface composing the Go error:
   ```go
   type GoError struct {
@@ -625,6 +666,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   ```
 
 ### Contextual Data
+
 - When we say the error is a value in Go, it is of string value - any type which has the Error() string function implemented qualifies for the error type.
 - Treating string values as errors complicates the error interpretations across the layers, as interpreting the error string is not the right approach. So let’s decouple the string with the error code.
   ```go
@@ -648,7 +690,8 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   ```
 
 ### Cause
-- The error can occur in any layer and it is necessary to provide the option for each layer to interpret the error and further wrap with additional contextual information without losing the original error value. 
+
+- The error can occur in any layer and it is necessary to provide the option for each layer to interpret the error and further wrap with additional contextual information without losing the original error value.
 - The GoError can be further decorated with the Causes which will hold the entire error stack.
   ```go
   type GoError struct {
@@ -679,8 +722,10 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   ```
 
 ### Response Type
+
 - Adding an error response type will support the error categorization for easy interpretation. For example, the errors can be categorized with response types like NotFound, and this information can be used for errors like DbRecordNotFound , ResourceNotFound , UserNotFound, and so on.
 - Example:
+
   ```go
   type GoError struct {
     error
@@ -701,6 +746,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   ```
 
 ### Retry
+
 - Snippet:
   ```go
   type GoError struct {
@@ -716,7 +762,9 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   ```
 
 ### GoError Interface
+
 - Error checking can be simplified by defining an explicit error interface definition with the implementation of GoError:
+
   ```go
   package goerr
   type Error interface {
@@ -738,6 +786,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   ```
 
 ### Error Abstraction
+
 - With the above-mentioned decorations, it is important to build the abstraction over an error and keep these decorations in a single place and provide the reusability of the error function:
   ```go
   func ResourceNotFound(id, kind string, cause error) GoError {
@@ -764,10 +813,41 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   }
   ```
 
+</br>
+
+---
+
+## [Golang Microservices: Working and Dealing with Errors](https://www.youtube.com/watch?v=uQOfXL6IFmQ) <span id="content-6"></span>
+
+### Errors in Go
+
+- Use errors.Is
+
+  ```go
+  if err == io.ErrUnexpectedEOF // Before
+  if errors.Is(err, io.ErrUnexpectedEOF) // After
+  ```
+
+- Use errors.As
+
+  ```go
+  if e, ok := err.(*os.PathError); ok // Before
+  var e *os.PathError  // After
+  if errors.As)err, &e)
+  ```
+
+- Use fmt.Errorf("message: %w", err)
+- Use errors.Unwrap
+
+</br>
+
+---
 
 ## References:
+
 - https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully
 - https://www.youtube.com/watch?v=lsBF58Q-DnY
 - https://blog.golang.org/error-handling-and-go
 - https://medium.com/@ozdemir.zynl/rest-api-error-handling-in-go-behavioral-type-assertion-509d93636afd
 - https://medium.com/spectro-cloud/decorating-go-error-d1db60bb9249
+- https://www.youtube.com/watch?v=uQOfXL6IFmQ
