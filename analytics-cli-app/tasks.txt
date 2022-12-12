@@ -1,0 +1,6 @@
+Starts with displaying the tasks:
+x Generate logging examples
+x Read one line of log and parse it into time
+x List all files in a directory
+x Read files and process i
+x Make condition to only process t minutes log data
